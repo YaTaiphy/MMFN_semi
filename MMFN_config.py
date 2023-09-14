@@ -11,7 +11,7 @@ MMFN_config ={
     # xlnet output = batch * xlnet_max_length * xlnet_size
     "XLNET_size" : 768,
     "xlent_max_length" : 144,
-
+    "bert_max_length" : 144,
 
     "batch_size" : 32,
 

@@ -37,5 +37,26 @@ def test20230912():
         sys.stdout.write("Exceeding %d/%d" % (j, i))
     print("res %d/%d" % (j, lengh))
 
+def testBertChs():
+    max_length = 144
+    from transformers import BertTokenizer, BertModel, BertConfig
+    tokenizer = BertTokenizer.from_pretrained('./pre-trained-model/bert-base-chinese')
+    model_config = BertConfig.from_pretrained('./pre-trained-model/bert-base-chinese')
+    model = BertModel.from_pretrained('./pre-trained-model/bert-base-chinese', config = model_config)
+
+    sentence = '一条小狗'
+    sentence = tokenizer.tokenize(sentence)
+    sentence = ['<CLS>'] + sentence
+    tokenized_text = sentence[:max_length]
+    if (len(tokenized_text) < max_length):
+        tokenized_text = tokenized_text + ['<PAD>'] * (max_length - len(tokenized_text))
+
+    input_ids = torch.tensor([tokenizer.convert_tokens_to_ids(tokenized_text)]).view(1,-1)  # Batch size 1
+    outputs = model(input_ids)
+    last_hidden_states = outputs[0]  # The last hidden-state is the first element of the output tuple
+    print(last_hidden_states.shape)
+
+
 if __name__ == '__main__':
-    test20230912()
+    # test20230912()
+    testBertChs()

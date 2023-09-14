@@ -10,17 +10,23 @@ import cn_clip.clip as cnClip
 from cn_clip.clip import load_from_name
 import langid
 import json
+from transformers import BertTokenizer, BertModel, BertConfig
+
+
+classSwinModel = SwinModel.from_pretrained('./pre-trained-model/swin-base-patch4-window12-384-in22k')
+classSwinAFE = AutoFeatureExtractor.from_pretrained('../co-attention/swin-base-patch4-window12-384-in22k')
+## 输出 *x144x1024
 class swin_base_patch4_window12_384_model(torch.nn.Module):
     def __init__(self, device):
         super(swin_base_patch4_window12_384_model, self).__init__()
         self.device = device
-        self.pre_train_model = SwinModel.from_pretrained('./pre-trained-model/swin-base-patch4-window12-384-in22k')
+        self.pre_train_model = classSwinModel
         self.pre_train_model.to(device)
         for param in self.pre_train_model.parameters():
             param.requires_grad = False
         self.pre_train_model.eval()
 
-        self.feature_extractor = AutoFeatureExtractor.from_pretrained('../co-attention/swin-base-patch4-window12-384-in22k')
+        self.feature_extractor = classSwinAFE
 
     def forward(self, inputs):
         return self.pre_train_model(**inputs)
@@ -36,43 +42,32 @@ class swin_base_patch4_window12_384_model(torch.nn.Module):
         outputs = self.pre_train_model(**inputs)
         return outputs
 
+from torchvision import models, transforms
+vgg_model = models.vgg19(pretrained=True)
+vgg_model = vgg_model.eval()
 
-class xlnet_base_cased_model(torch.nn.Module):
-    def __init__(self, max_length, device):
-        super(xlnet_base_cased_model, self).__init__()
+vgg_model_4096 = models.vgg19(pretrained=True)
+new_classifier = torch.nn.Sequential(*list(vgg_model_4096.children())[-1][:6])
+vgg_model_4096.classifier = new_classifier
+vgg_model_4096 = vgg_model_4096.eval()
+trans = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+def img_process(img_path):
+    im = Image.open(img_path).convert('RGB')
+    im = trans(im)
+    im.unsqueeze_(dim=0)
+    img_vector = vgg_model_4096(im).data.numpy()
+    return img_vector
 
-        self.max_length = max_length
 
-        self.device = device
-        self.model_config = XLNetConfig.from_pretrained('./pre-trained-model/xlnet-base-cased')
-        self.pre_train_model = XLNetModel.from_pretrained('./pre-trained-model/xlnet-base-cased', config = self.model_config)
-        self.pre_train_model.to(device)
-        for param in self.pre_train_model.parameters():
-            param.requires_grad = False
-        self.pre_train_model.eval()
 
-        self.tokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/xlnet-base-cased')
-
-    def forward(self, inputs):
-        return self.pre_train_model(inputs)
-
-    def get_feature(self, sentence):
-        sentence = '<cls>' + sentence
-        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
-        if(len(tokenized_text) < self.max_length):
-            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
-
-        outputs = self.pre_train_model(torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1))
-        return outputs
-
-    def get_feature_batch(self, sentence):
-        sentence = '<cls>' + sentence
-        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
-        if(len(tokenized_text) < self.max_length):
-            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
-
-        return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
-
+classXlnetConfig = XLNetConfig.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
+classXlnetModel = XLNetModel.from_pretrained('./pre-trained-model/chinese-xlnet-mid', config = classXlnetConfig)
+classXlnetTokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
+## 输出144x768
 class chinese_xlnet_mid_model(torch.nn.Module):
     def __init__(self, max_length, device):
         super(chinese_xlnet_mid_model, self).__init__()
@@ -80,14 +75,14 @@ class chinese_xlnet_mid_model(torch.nn.Module):
         self.max_length = max_length
 
         self.device = device
-        self.model_config = XLNetConfig.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
-        self.pre_train_model = XLNetModel.from_pretrained('./pre-trained-model/chinese-xlnet-mid', config = self.model_config)
+        self.model_config = classXlnetConfig
+        self.pre_train_model = classXlnetModel
         self.pre_train_model.to(device)
         for param in self.pre_train_model.parameters():
             param.requires_grad = False
         self.pre_train_model.eval()
 
-        self.tokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
+        self.tokenizer = classXlnetTokenizer
 
     def forward(self, inputs):
         return self.pre_train_model(inputs)
@@ -110,6 +105,52 @@ class chinese_xlnet_mid_model(torch.nn.Module):
         return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
 
 
+## 输出*X144x768
+classBertConfig = BertConfig.from_pretrained('./pre-trained-model/bert-base-chinese')
+classBertModel = BertModel.from_pretrained('./pre-trained-model/bert-base-chinese', config = classBertConfig)
+classBertTokenizer = BertTokenizer.from_pretrained('./pre-trained-model/bert-base-chinese')
+class bert_base_chinese_model(torch.nn.Module):
+    def __init__(self, max_length, device):
+        super(bert_base_chinese_model, self).__init__()
+
+        self.max_length = max_length
+
+        self.device = device
+        self.model_config = classBertConfig
+        self.pre_train_model = classBertModel
+        self.pre_train_model.to(device)
+        for param in self.pre_train_model.parameters():
+            param.requires_grad = False
+        self.pre_train_model.eval()
+
+        self.tokenizer = classBertTokenizer
+
+    def forward(self, inputs):
+        return self.pre_train_model(inputs)
+
+
+    def get_feature(self, sentence):
+        sentence = self.tokenizer.tokenize(sentence)
+        sentence = ['<CLS>'] + sentence
+        tokenized_text = sentence[:self.max_length]
+        if (len(tokenized_text) < self.max_length):
+            tokenized_text = tokenized_text + ['<PAD>'] * (self.max_length - len(tokenized_text))
+
+        outputs = self.pre_train_model(
+            torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1))
+        return outputs
+
+
+    def get_feature_batch(self, sentence):
+        sentence = '<cls>' + sentence
+        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
+        if (len(tokenized_text) < self.max_length):
+            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
+
+        return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
+
+
+## 输出float16 512
 def get_clipEng(sentence, imagePath, device):
     clipEng, clipPreprocessEng = clip.load("./pre-trained-model/ViT-B-32.pt", device=device)
 
@@ -136,6 +177,9 @@ def get_clipEng(sentence, imagePath, device):
 device = "cuda:1" if torch.cuda.is_available() else "cpu"
 clipChs, ClipPreprocessChs = load_from_name("ViT-B-16", device=device,
                                                           download_root='./pre-trained-model/')
+
+
+## 输出float16 512
 def get_clipChs(sentence, imagePath, device):
     # model, preprocess = load_from_name("ViT-B-16", device=device, download_root='./')
     # image = preprocess(Image.open(imagePath)).unsqueeze(0).to(device)
@@ -256,11 +300,13 @@ if __name__ == "__main__":
 
         xlnet_features = []
         swinT_features = []
+        bert_features = []
+        vgg19_features = []
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
-        swinTmodel = swin_base_patch4_window12_384_model(device)
-        xlnetModel = chinese_xlnet_mid_model(144, device)
-
+        # swinTmodel = swin_base_patch4_window12_384_model(device)
+        # xlnetModel = chinese_xlnet_mid_model(144, device)
+        bertModel = chinese_xlnet_mid_model(144, device)
 
         for line in lines:
             all_data = json.loads(line)
@@ -280,24 +326,31 @@ if __name__ == "__main__":
                     imageP.append(os.path.split(json_file)[0]+'/pic/' + image)
                     text_encoded, image_feature, similar = get_clipChs(sentence, imageP, device)
 
+                    imagePath = os.path.split(json_file)[0]+'/pic/' + image
                     image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
-                    swinT_feature = swinTmodel.get_feature(image).last_hidden_state
-
-                    xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
-
-                    clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
-                    clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
-                    swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
-                    xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+                    # swinT_feature = swinTmodel.get_feature(image).last_hidden_state
+                    #
+                    # xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
+                    #
+                    bert_features = bertModel.get_feature(text).last_hidden_state
+                    vgg19_features = vgg_model(imagePath)
+                    # clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
+                    # clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
+                    # swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
+                    # xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
                 except:
                     continue
-            break
+            # break
 
         # np.array(AAAI2vector_sentences).tofile('./AAAI_xlnet_larger_cls_01.bin')
-        np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
-        np.array(clip_features_image).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.bin')
-        np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
-        np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
+        # np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
+        # np.array(clip_features_image).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.bin')
+        # np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
+        # np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
+        np.array(bert_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_bert_features.bin')
+        np.array(bert_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_vgg-19_features.bin')
 
     ### get json file
     def get_json_file(path):
