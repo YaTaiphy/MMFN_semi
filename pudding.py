@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-
+import time
 def data_get_binChs(paths):
     mark = False
     for path in paths:
@@ -52,6 +52,7 @@ def data_get_binChs(paths):
 if __name__ == '__main__':
     abs_path = './data/weibo16/'
     ext = input("合并weibo16即将开始，请输入字段以判明合并哪片数据：")
+    # ext = 'bert'
     paths = []
     for file in os.listdir(abs_path):
         if ext in file and file.endswith('.bin'):
@@ -62,5 +63,35 @@ if __name__ == '__main__':
     paths.sort()
     print(paths)
 
-    data_get_binChs(paths)
+    saving_data = []
+    label = []
+    mark = 0
+    for path in paths:
+        if 'xlnet' in path or 'bert' in path:
+            saving_data.append(torch.tensor(np.fromfile(path, dtype=np.float32).reshape(-1, 144, 768)))
+        elif 'swin' in path:
+            saving_data.append(torch.tensor(np.fromfile(path, dtype=np.float32).reshape(-1, 144, 1024)))
+        elif 'text' in path:
+            saving_data.append(torch.tensor(np.fromfile(path, dtype=np.float16).reshape(-1, 512)))
+            mark = 1
+            if 'nonrumor' in path or 'real' in path:
+                label.append(torch.full((torch.tensor(np.fromfile(path, dtype=np.float16).reshape(-1, 512)).shape[0],), 1, dtype=torch.int64))
+            else:
+                label.append(torch.full((torch.tensor(np.fromfile(path, dtype=np.float16).reshape(-1, 512)).shape[0],), 0, dtype=torch.int64))
+        elif 'image' in path:
+            saving_data.append(torch.tensor(np.fromfile(path, dtype=np.float16).reshape(-1, 512)))
+        elif 'vgg' in path:
+            saving_data.append(torch.tensor(np.fromfile(path, dtype=np.float32).reshape(-1, 4096)))
+    # data_get_binChs(paths)
+    save_data = torch.cat(saving_data)
+    saving_data = None
+    print(save_data.shape)
+    time.sleep(5)
+
+    torch.save(save_data, './data/weibo16/' + ext + '16.pt')
+    if mark == 1:
+        label = torch.cat(label)
+        print(label.shape)
+        torch.save(label, './data/weibo16/label16.pt')
+
     print('end')
