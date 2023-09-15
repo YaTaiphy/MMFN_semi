@@ -412,6 +412,146 @@ if __name__ == "__main__":
         bert_features = None
         vgg19_features = None
 
+    def read_json_and_save_feature_singleImage(json_file, save_base_path):
+        print('single image')
+        f = open(json_file, 'r', encoding='utf-8')
+        lines = f.readlines()
+        f.close()
+
+        clip_features_text = []
+        clip_features_image = []
+
+        xlnet_features = []
+        swinT_features = []
+        bert_features = []
+        vgg19_features = []
+
+        device = "cuda:1" if torch.cuda.is_available() else "cpu"
+        swinTmodel = swin_base_patch4_window12_384_model(device)
+        xlnetModel = chinese_xlnet_mid_model(144, device)
+        bertModel = chinese_xlnet_mid_model(144, device)
+
+        cout = 0
+        mark = 0
+        for line in lines:
+            all_data = json.loads(line)
+
+            text = all_data["content"]
+            images = all_data["piclists"]
+            char_to_remove = "null"
+            # 使用循环迭代列表并删除包含指定字符的元素
+            images = [item for item in images if char_to_remove not in item]
+
+            length = len(images)
+            import random
+            random_number = random.uniform(0, length-1)
+            random_number = int(random_number)
+
+            ## get features
+            try:
+                text_encoded_set = []
+                image_feature_set = []
+                vgg19_feature_set = []
+                swinT_feature_set = []
+                for image in images:
+                    sentence = []
+                    imageP = []
+                    sentence.append(text)
+                    imageP.append(os.path.split(json_file)[0]+'/pic/' + image)
+                    text_s, image_s, similar = get_clipChs(sentence, imageP, device)
+                    text_encoded_set.append(text_s)
+                    image_feature_set.append(image_s)
+
+                    imagePath = os.path.split(json_file)[0]+'/pic/' + image
+                    vgg19_feature_set.append(torch.from_numpy(vgg19_img_process(imagePath)))
+
+                    image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
+
+                    swinT_feature_set.append(swinTmodel.get_feature(image).last_hidden_state)
+
+                text_encoded = torch.mean(torch.stack(text_encoded_set), dim=0)
+                image_feature = torch.mean(torch.stack(image_feature_set), dim=0)
+                vgg19_feature = torch.mean(torch.stack(vgg19_feature_set), dim=0)
+                swinT_feature = torch.mean(torch.stack(swinT_feature_set), dim=0)
+
+                xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
+
+                bert_feature = bertModel.get_feature(text).last_hidden_state
+                clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
+                clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
+                swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
+                xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+
+                bert_features.append(bert_feature.to('cpu').detach().numpy().reshape(-1))
+                vgg19_features.append(vgg19_feature.numpy().reshape(-1))
+                cout = cout + 1
+
+                if cout >= 5000:
+                    cout = 0
+                    print("saving.....")
+                    np.array(clip_features_text).tofile(
+                        save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                            0] + '_singleImage_clip_features_text_' + str(mark) + '.bin')
+                    np.array(clip_features_image).tofile(
+                        save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                            0] + '_singleImage_clip_features_image_' + str(mark) + '.bin')
+                    np.array(swinT_features).tofile(
+                        save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                            0] + '_singleImage_swinT_features_' + str(mark) + '.bin')
+                    np.array(xlnet_features).tofile(
+                        save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                            0] + '_singleImage_xlnet_features_' + str(mark) + '.bin')
+                    np.array(bert_features).tofile(
+                        save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                            0] + '_singleImage_bert_features_' + str(mark) + '.bin')
+                    np.array(vgg19_features).tofile(
+                        save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                            0] + '_singleImage_vgg-19_features_' + str(mark) + '.bin')
+                    del clip_features_text
+                    del clip_features_image
+                    del swinT_features
+                    del xlnet_features
+                    del bert_features
+                    del vgg19_features
+                    clip_features_text = []
+                    clip_features_image = []
+                    swinT_features = []
+                    xlnet_features = []
+                    bert_features = []
+                    vgg19_features = []
+                    mark = mark + 1
+
+            except:
+                continue
+            # break
+
+        # np.array(AAAI2vector_sentences).tofile('./AAAI_xlnet_larger_cls_01.bin')
+        print("saving.....")
+        np.array(clip_features_text).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_singleImage_clip_features_text_' + str(mark) + '.bin')
+        np.array(clip_features_image).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_singleImage_clip_features_image_' + str(mark) + '.bin')
+        np.array(swinT_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_singleImage_swinT_features_' + str(mark) + '.bin')
+        np.array(xlnet_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_singleImage_xlnet_features_' + str(mark) + '.bin')
+        np.array(bert_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_singleImage_bert_features_' + str(mark) + '.bin')
+        np.array(vgg19_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_singleImage_vgg-19_features_' + str(mark) + '.bin')
+
+        clip_features_text = None
+        clip_features_image = None
+        swinT_features = None
+        xlnet_features = None
+        bert_features = None
+        vgg19_features = None
 
     ### get json file
     def get_json_file(path):
@@ -427,7 +567,8 @@ if __name__ == "__main__":
 
         for json_file in json_files:
             print(json_file)
-            read_json_and_save_feature(os.path.join(file_path, json_file), save_base_path)
+            # read_json_and_save_feature(os.path.join(file_path, json_file), save_base_path)
+            read_json_and_save_feature_singleImage(os.path.join(file_path, json_file), save_base_path)
 
 
     print("beginning.....ver11111")

@@ -55,7 +55,7 @@ if __name__ == '__main__':
     # ext = 'bert'
     paths = []
     for file in os.listdir(abs_path):
-        if ext in file and file.endswith('.bin'):
+        if ext in file and file.endswith('.bin') and 'single' in file:
             p = abs_path + file
             paths.append(p)
         # p = abs_path + file
@@ -88,10 +88,10 @@ if __name__ == '__main__':
     print(save_data.shape)
     time.sleep(5)
 
-    torch.save(save_data, './data/weibo16/' + ext + '16.pt')
+    torch.save(save_data, './data/weibo16/' + ext + '_single_16.pt')
     if mark == 1:
         label = torch.cat(label)
         print(label.shape)
-        torch.save(label, './data/weibo16/label16.pt')
+        torch.save(label, './data/weibo16/label_single_16.pt')
 
     print('end')
