@@ -55,7 +55,7 @@ trans = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
-def img_process(img_path):
+def vgg19_img_process(img_path):
     im = Image.open(img_path).convert('RGB')
     im = trans(im)
     im.unsqueeze_(dim=0)
@@ -304,10 +304,12 @@ if __name__ == "__main__":
         vgg19_features = []
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
-        # swinTmodel = swin_base_patch4_window12_384_model(device)
-        # xlnetModel = chinese_xlnet_mid_model(144, device)
+        swinTmodel = swin_base_patch4_window12_384_model(device)
+        xlnetModel = chinese_xlnet_mid_model(144, device)
         bertModel = chinese_xlnet_mid_model(144, device)
 
+        cout = 0
+        mark = 0
         for line in lines:
             all_data = json.loads(line)
 
@@ -328,29 +330,88 @@ if __name__ == "__main__":
 
                     imagePath = os.path.split(json_file)[0]+'/pic/' + image
                     image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
-                    # swinT_feature = swinTmodel.get_feature(image).last_hidden_state
-                    #
-                    # xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
-                    #
-                    bert_features = bertModel.get_feature(text).last_hidden_state
-                    vgg19_features = vgg_model(imagePath)
-                    # clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
-                    # clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
-                    # swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
-                    # xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+                    swinT_feature = swinTmodel.get_feature(image).last_hidden_state
+
+                    xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
+
+                    bert_feature = bertModel.get_feature(text).last_hidden_state
+                    vgg19_feature = vgg19_img_process(imagePath)
+                    clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
+                    clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
+                    swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
+                    xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+
+                    bert_features.append(bert_feature.to('cpu').detach().numpy().reshape(-1))
+                    vgg19_features.append(vgg19_feature.reshape(-1))
+                    cout = cout + 1
+
+                    if cout >= 5000:
+                        cout = 0
+                        print("saving.....")
+                        np.array(clip_features_text).tofile(
+                            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_clip_features_text_' + str(mark) + '.bin')
+                        np.array(clip_features_image).tofile(
+                            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_clip_features_image_' + str(mark) + '.bin')
+                        np.array(swinT_features).tofile(
+                            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_swinT_features_' + str(mark) + '.bin')
+                        np.array(xlnet_features).tofile(
+                            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_xlnet_features_' + str(mark) + '.bin')
+                        np.array(bert_features).tofile(
+                            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_bert_features_' + str(mark) + '.bin')
+                        np.array(vgg19_features).tofile(
+                            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_vgg-19_features_' + str(mark) + '.bin')
+                        del clip_features_text
+                        del clip_features_image
+                        del swinT_features
+                        del xlnet_features
+                        del bert_features
+                        del vgg19_features
+                        clip_features_text = []
+                        clip_features_image = []
+                        swinT_features = []
+                        xlnet_features = []
+                        bert_features = []
+                        vgg19_features = []
+                        mark = mark + 1
+
                 except:
                     continue
             # break
 
         # np.array(AAAI2vector_sentences).tofile('./AAAI_xlnet_larger_cls_01.bin')
-        # np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
-        # np.array(clip_features_image).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.bin')
-        # np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
-        # np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
+        print("saving.....")
+        np.array(clip_features_text).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_clip_features_text_' + str(mark) + '.bin')
+        np.array(clip_features_image).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_clip_features_image_' + str(mark) + '.bin')
+        np.array(swinT_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_swinT_features_' + str(mark) + '.bin')
+        np.array(xlnet_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_xlnet_features_' + str(mark) + '.bin')
         np.array(bert_features).tofile(
-            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_bert_features.bin')
-        np.array(bert_features).tofile(
-            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_vgg-19_features.bin')
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_bert_features_' + str(mark) + '.bin')
+        np.array(vgg19_features).tofile(
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_vgg-19_features_' + str(mark) + '.bin')
+
+        clip_features_text = None
+        clip_features_image = None
+        swinT_features = None
+        xlnet_features = None
+        bert_features = None
+        vgg19_features = None
+
 
     ### get json file
     def get_json_file(path):
@@ -368,5 +429,7 @@ if __name__ == "__main__":
             print(json_file)
             read_json_and_save_feature(os.path.join(file_path, json_file), save_base_path)
 
+
+    print("beginning.....ver11111")
     execute_path(weibo16Path, weibo16PathSave)
     execute_path(weibo21Path, weibo21PathSave)

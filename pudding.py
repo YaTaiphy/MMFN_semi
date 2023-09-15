@@ -51,11 +51,16 @@ def data_get_binChs(paths):
 
 if __name__ == '__main__':
     abs_path = './data/weibo16/'
+    ext = input("合并weibo16即将开始，请输入字段以判明合并哪片数据：")
     paths = []
     for file in os.listdir(abs_path):
-        if 'text' in file:
+        if ext in file and file.endswith('.bin'):
             p = abs_path + file
             paths.append(p)
+        # p = abs_path + file
+        # paths.append(p)
+    paths.sort()
+    print(paths)
 
     data_get_binChs(paths)
     print('end')
