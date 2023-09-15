@@ -6,9 +6,11 @@ from torch import nn, optim
 from dataset_MMFN import DataSetMMFN_semiChs, data_get_binChs
 from torch.utils.data import random_split, DataLoader
 from tqdm import tqdm
-from sklearn.metrics import recall_score, classification_report, precision_score
+from sklearn.metrics import recall_score, classification_report, precision_score, precision_recall_fscore_support, \
+    accuracy_score
 from MMFN_model import MMFN_semi_Texture_Branch, MMFN_semi_Visual_Branch, CTCoAttentionTransformer, MMFN_classifier
 from MMFN_config import MMFN_config
+import numpy as np
 
 device = "cuda:1" if torch.cuda.is_available() else "cpu"
 
@@ -27,6 +29,9 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
     all = 0
     rec = 0
     report = 0
+
+    all_label = []
+    all_pred = []
     for input_xlnet, input_swin, input_clip_text, input_clip_img, batchLabel in tqdm(dataloads, desc='进度', leave=True, ncols=100):
         step += 1
         all += batchLabel.view(-1).shape[0]
@@ -45,10 +50,12 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
         loss = criterion(detector_decode.to(device), batchLabel.to(device))
         running_loss += loss
 
-        recall_mark = recall_score(batchLabel.view(-1).cpu().numpy(), pred.view(-1).cpu().numpy())
-        rec = rec + recall_mark
-        acc += (pred.view(-1).data.cpu() == batchLabel.view(-1).data).sum()
-        report = classification_report(batchLabel.view(-1).cpu().numpy(), pred.view(-1).cpu().numpy())
+        all_label.append(batchLabel.view(-1).cpu().numpy())
+        all_pred.append(pred.view(-1).cpu().numpy())
+        # precision, recall, f1, support = precision_recall_fscore_support(batchLabel.view(-1).cpu().numpy(), pred.view(-1).cpu().numpy())
+        # accuracy = accuracy_score(batchLabel.view(-1).cpu().numpy(), pred.view(-1).cpu().numpy())
+        # acc += (pred.view(-1).data.cpu() == batchLabel.view(-1).data).sum()
+        # report = classification_report(batchLabel.view(-1).cpu().numpy(), pred.view(-1).cpu().numpy())
 
         if train:
             optimizer.zero_grad()  # 清除上一轮的梯度，防止累积.cpu().numpy()
@@ -56,11 +63,15 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
             optimizer.step()
 
         running_loss = float(running_loss) / step
-        avg_acc = float(acc) / all
-        avg_rec = rec / step
         # if train:
         #   scheduler.step()
-    return running_loss, avg_acc, avg_rec, report
+        # if step > 3:
+        #     break
+
+    precision, recall, f1, support = precision_recall_fscore_support(np.hstack(all_label), np.hstack(all_pred))
+    accuracy = accuracy_score(np.hstack(all_label), np.hstack(all_pred))
+    report = classification_report(np.hstack(all_label), np.hstack(all_pred))
+    return running_loss, accuracy, precision, recall, f1, support, report
 
 
 def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './data/weibo16/'):
@@ -69,7 +80,7 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
     paths = []
 
     for file in os.listdir(datapath):
-        if '.pt' in file:
+        if '.pt' in file and 'single' in file:
             p = datapath + file
             paths.append(p)
 
@@ -95,19 +106,51 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
     optimizer = optim.Adam(model.parameters(), lr=0.000001)
     criterion = nn.CrossEntropyLoss()
 
+    train_results = {
+        'running_loss' :[],
+        'accuracy' :[],
+        'precision': [],
+        'recall': [],
+        'f1': [],
+        'support': []
+    }
+    eval_results = {
+        'running_loss' :[],
+        'accuracy': [],
+        'precision': [],
+        'recall': [],
+        'f1': [],
+        'support': []
+    }
+
     for epoch in range(epochs):
         print("rounds" + str(epoch))
-        train_loss, train_avg_acc, train_avg_rec, train_report = fit(model,
+        train_loss, train_accuracy, train_precision, train_recall, train_f1, train_support, train_report = fit(model,
                                                                      train_loader, optimizer, criterion, device,
                                                                      batch_size,
                                                                      train=True)
-        eval_loss, eval_avg_acc, eval_avg_rec, eval_report = fit(model,
+        train_results['running_loss'].append(train_loss)
+        train_results['accuracy'].append(train_accuracy)
+        train_results['precision'].append(train_precision)
+        train_results['recall'].append(train_recall)
+        train_results['f1'].append(train_f1)
+        train_results['support'].append(train_support)
+
+        eval_loss, eval_accuracy, eval_precision, eval_recall, eval_f1, eval_support, eval_report = fit(model,
                                                                  eval_loader, optimizer, criterion, device, batch_size,
                                                                  train=False)
+
+        eval_results['running_loss'].append(eval_loss)
+        eval_results['accuracy'].append(eval_accuracy)
+        eval_results['precision'].append(eval_precision)
+        eval_results['recall'].append(eval_recall)
+        eval_results['f1'].append(eval_f1)
+        eval_results['support'].append(eval_support)
+
         message = ('\n\tEpoch:' + str(epoch + 1) +
-                   '\n\tTrain_loss: %.4f' % train_loss + '|Train_acc: %.4f' % train_avg_acc + '|Recall: %.4f' % train_avg_rec +
+                   '\n\tTrain_loss: %.4f' % train_loss + '|Train_acc: %.4f' % train_accuracy +
                    '\n\tTrain_report' + train_report +
-                   '\n\teval_loss: %.4f' % eval_loss + '|eval_acc: %.4f' % eval_avg_acc + '|Recall: %.4f' % eval_avg_rec +
+                   '\n\teval_loss: %.4f' % eval_loss + '|eval_acc: %.4f' % eval_accuracy +
                    '\n\teval_report' + eval_report
                    )
         print(message)
@@ -115,6 +158,16 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
         fd.write(message)
         fd.close()
         torch.save(model.state_dict(), "./exist_model/" + '_' + type_name + '_' + str(epoch) + '.pth')
+
+    # 访问加载的数据参考
+    # loaded_data = np.load('results.npz')
+    # loaded_precision = loaded_data['precision']
+    # loaded_recall = loaded_data['recall']
+    # loaded_f1 = loaded_data['f1']
+    # loaded_support = loaded_data['support']
+
+    np.savez("./exist_model/" + '_' + type_name + '_' + 'train_results.npz', **train_results)
+    np.savez("./exist_model/" + '_' + type_name + '_' + 'eval_results.npz', **eval_results)
 
 
 if __name__ == '__main__':
