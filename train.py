@@ -80,7 +80,7 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
     paths = []
 
     for file in os.listdir(datapath):
-        if '.pt' in file:
+        if '.pt' in file and 'single' in file:
             p = datapath + file
             paths.append(p)
 
