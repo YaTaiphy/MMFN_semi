@@ -1,6 +1,6 @@
 ### 该预训练模型包含以下部分：BERT，CLIP，SWIN-T；可直接使用。
 import os
-
+import re
 import torch
 from PIL import Image
 from transformers import SwinModel, AutoFeatureExtractor, XLNetTokenizer, XLNetModel, XLNetConfig
@@ -110,8 +110,8 @@ class chinese_xlnet_mid_model(torch.nn.Module):
         return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
 
 
+clipEng, clipPreprocessEng = clip.load("./pre-trained-model/ViT-B-32.pt", device="cuda:1" if torch.cuda.is_available() else "cpu")
 def get_clipEng(sentence, imagePath, device):
-    clipEng, clipPreprocessEng = clip.load("./pre-trained-model/ViT-B-32.pt", device=device)
 
     with torch.no_grad():
         text_encoded = clipEng.encode_text(clip.tokenize(sentence, 77, True).to(device)).to(device)
@@ -187,61 +187,13 @@ def ocr_word(image, reader):
     return words
 
 if __name__ == "__main__":
+    ##原始数据结构如下
+    ##mediaeval数据集分为2015和2016两个版本数据集，按照之前微博的处理方法，每个json导出一个data，剩余的融合交由train.py处理
+    ##图片均存储于pic文件夹中
 
-    # device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    # sentence = ["it's a pigfish", "it's a pig", "it's a fish", "it's a dog smiling"]
-    # sentence = ["一条猪鱼", "一只猪", "一条鱼", "一只狗在笑"]
-    # image = ["./temp/pigFish_01.jpg", "./temp/a dog.jpg"]
-    # text_encoded, image_feature, similar = get_clipChs(sentence, image, device)
-    # print('abc')
+    all_path = '/home/lxy/FakeNews_data/new/mediaeval/'
 
-    # device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    # image = Image.open('../co-attention/FJhl5eHVcAEPqbQ.jpg')
-    # model = swin_base_patch4_window12_384_model(device)
-    # print(model.get_feature(image))
-
-
-    # sentence = ["it's a pigfish", "it's a pig", "it's a fish", "it's a dog smiling"]
-    # sentence = ["一条猪鱼", "一只猪", "一条鱼", "一只狗在笑"]
-    # device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    # model = chinese_xlnet_mid_model(77, device)
-    # print(model.get_feature_batch(sentence))
-
-    # weibo16 = open('./data/weibo16.txt', 'r', encoding='utf-8')
-    # weibo16PathRealPic = '/home/lxy/FakeNews_data/new/weibo16/nonrumor_images/'
-    # weibo16PathFakePic = '/home/lxy/FakeNews_data/new/weibo16/rumor_images/'
-    # weibo21PathPic = '/home/lxy/FakeNews_data/new/weibo21/pic'
-    #
-    # PathAllPic = []
-    # PathAllPic.append(weibo16PathRealPic)
-    # PathAllPic.append(weibo16PathFakePic)
-    # PathAllPic.append(weibo21PathPic)
-    #
-    #
-    # import easyocr
-    # reader = easyocr.Reader(['ch_sim'])
-    # for sub_path in PathAllPic:
-    #     for file in os.listdir(sub_path):
-    #         if file.endswith('.jpg'):
-    #             image_path = os.path.join(sub_path, file)
-    #
-    #             txt = ocr_word(image_path, reader)
-    #
-    #             save_path = os.path.join(sub_path, file.split('.')[0] + '.txt')
-    #
-    #             print(save_path)
-    #             with open(save_path, 'w', encoding='utf-8') as f:
-    #                 f.write(txt)
-    #
-    #             f.close()
-
-
-    weibo16Path = '/home/lxy/FakeNews_data/new/weibo16/'
-    weibo16PathSave = './data/weibo16/'
-    weibo21Path = '/home/lxy/FakeNews_data/new/weibo21/'
-    weibo21PathSave = './data/weibo21/'
-
-    save_path = './data/'
+    save_path = './data/mediaeval'
 
     ### read json file and save feature
     ### and here is a bad code, but I don't want to change it
@@ -259,13 +211,20 @@ if __name__ == "__main__":
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
         swinTmodel = swin_base_patch4_window12_384_model(device)
-        xlnetModel = chinese_xlnet_mid_model(144, device)
+        xlnetModel = xlnet_base_cased_model(144, device)
 
 
         for line in lines:
             all_data = json.loads(line)
 
             text = all_data["content"]
+
+            text = re.sub(r'#(\w+)\s', r'<SEP>\1<SEP>', text)
+            # 去除@用户提及
+            text = re.sub(r'@\w+\s*', '', text)
+            text = text.replace("&amp;", "&")
+            text = re.sub(r'https?://\S+|www\.\S+', '', text)
+
             images = all_data["piclists"]
             char_to_remove = "null"
             # 使用循环迭代列表并删除包含指定字符的元素
@@ -273,25 +232,32 @@ if __name__ == "__main__":
 
             ## get features
             for image in images:
-                try:
-                    sentence = []
-                    imageP = []
-                    sentence.append(text)
-                    imageP.append(os.path.split(json_file)[0]+'/pic/' + image)
-                    text_encoded, image_feature, similar = get_clipChs(sentence, imageP, device)
+                extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+                for extension in extensions:
+                    try:
+                        sentence = []
+                        imageP = []
+                        sentence.append(text)
 
-                    image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
-                    swinT_feature = swinTmodel.get_feature(image).last_hidden_state
+                        ## 以下为修打补丁，搽当初pic没有考虑周全的屁股
+                        image = re.sub(r'\s', '', image)
+                        image = os.path.splitext(image)[0] + extension
 
-                    xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
+                        imageP.append(os.path.split(json_file)[0]+'/pic/' + image)
+                        text_encoded, image_feature, similar = get_clipEng(sentence, imageP, device)
 
-                    clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
-                    clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
-                    swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
-                    xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
-                except:
-                    continue
-            break
+                        image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
+                        swinT_feature = swinTmodel.get_feature(image).last_hidden_state
+
+                        xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
+
+                        clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
+                        clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
+                        swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
+                        xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+                    except:
+                        continue
+            # break
 
         # np.array(AAAI2vector_sentences).tofile('./AAAI_xlnet_larger_cls_01.bin')
         np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
@@ -303,7 +269,7 @@ if __name__ == "__main__":
     def get_json_file(path):
         json_file = []
         for file in os.listdir(path):
-            if file.endswith('.json') and 'select' in file:
+            if file.endswith('.json'):
                 json_file.append(file)
         return json_file
 
@@ -315,5 +281,5 @@ if __name__ == "__main__":
             print(json_file)
             read_json_and_save_feature(os.path.join(file_path, json_file), save_base_path)
 
-    execute_path(weibo16Path, weibo16PathSave)
-    execute_path(weibo21Path, weibo21PathSave)
+    execute_path(all_path, save_path)
+    # execute_path(weibo21Path, weibo21PathSave)
