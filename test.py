@@ -2,6 +2,7 @@ from MMFN_model import MMFN_classifier
 import torch
 import numpy as np
 import sys
+import os
 def test20230912():
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
     model_path = './exist_model/_MMFN_semiChs_20230910_99.pth'
@@ -37,5 +38,177 @@ def test20230912():
         sys.stdout.write("Exceeding %d/%d" % (j, i))
     print("res %d/%d" % (j, lengh))
 
+def conbineEngF20231031():
+    datapath = './data/mediaeval/'
+
+    clipFeaturesTextPaths = []
+    clipFeaturesImagePaths = []
+    swinTFeaturesPaths = []
+    xlnetFeaturesPaths = []
+    labelFeaturesPaths = []
+    for file in os.listdir(datapath):
+        if 'clip_features_text' in file:
+            p = datapath + file
+            clipFeaturesTextPaths.append(p)
+        elif 'clip_features_image' in file:
+            p = datapath + file
+            clipFeaturesImagePaths.append(p)
+        elif 'swinT_features' in file:
+            p = datapath + file
+            swinTFeaturesPaths.append(p)
+        elif 'xlnet_features' in file:
+            p = datapath + file
+            xlnetFeaturesPaths.append(p)
+        elif 'label_features' in file:
+            p = datapath + file
+            labelFeaturesPaths.append(p)
+    clipFeaturesTextPaths.sort()
+    clipFeaturesImagePaths.sort()
+    swinTFeaturesPaths.sort()
+    xlnetFeaturesPaths.sort()
+    labelFeaturesPaths.sort()
+    clipFeaturesText = []
+    clipFeaturesImage = []
+    swinTFeatures = []
+    xlnetFeatures = []
+    labelFeatures = []
+    for i in range(len(clipFeaturesTextPaths)):
+        if i == 0:
+            clipFeaturesText = torch.load(clipFeaturesTextPaths[i])
+            clipFeaturesImage = torch.load(clipFeaturesImagePaths[i])
+            swinTFeatures = torch.load(swinTFeaturesPaths[i])
+            xlnetFeatures = torch.load(xlnetFeaturesPaths[i])
+            labelFeatures = torch.load(labelFeaturesPaths[i])
+        else:
+            clipFeaturesText = torch.cat((clipFeaturesText, torch.load(clipFeaturesTextPaths[i])), dim=0)
+            clipFeaturesImage = torch.cat((clipFeaturesImage, torch.load(clipFeaturesImagePaths[i])), dim=0)
+            swinTFeatures = torch.cat((swinTFeatures, torch.load(swinTFeaturesPaths[i])), dim=0)
+            xlnetFeatures = torch.cat((xlnetFeatures, torch.load(xlnetFeaturesPaths[i])), dim=0)
+            labelFeatures = torch.cat((labelFeatures, torch.load(labelFeaturesPaths[i])), dim=0)
+
+    torch.save(clipFeaturesText, datapath + 'clip_features_text_All.pt')
+    torch.save(clipFeaturesImage, datapath + 'clip_features_image_All.pt')
+    torch.save(swinTFeatures, datapath + 'swinT_features_All.pt')
+    torch.save(xlnetFeatures, datapath + 'xlnet_features_All.pt')
+    torch.save(labelFeatures, datapath + 'label_features_All.pt')
+
+
+def conbineEngF20231031_dev():
+    datapath = './data/mediaeval/'
+
+    clipFeaturesTextPaths = []
+    clipFeaturesImagePaths = []
+    swinTFeaturesPaths = []
+    xlnetFeaturesPaths = []
+    labelFeaturesPaths = []
+    for file in os.listdir(datapath):
+        if 'test' in file or 'All' in file or 'no2' in file:
+            continue
+        elif 'clip_features_text' in file:
+            p = datapath + file
+            clipFeaturesTextPaths.append(p)
+        elif 'clip_features_image' in file:
+            p = datapath + file
+            clipFeaturesImagePaths.append(p)
+        elif 'swinT_features' in file:
+            p = datapath + file
+            swinTFeaturesPaths.append(p)
+        elif 'xlnet_features' in file:
+            p = datapath + file
+            xlnetFeaturesPaths.append(p)
+        elif 'label_features' in file:
+            p = datapath + file
+            labelFeaturesPaths.append(p)
+    clipFeaturesTextPaths.sort()
+    clipFeaturesImagePaths.sort()
+    swinTFeaturesPaths.sort()
+    xlnetFeaturesPaths.sort()
+    labelFeaturesPaths.sort()
+    clipFeaturesText = []
+    clipFeaturesImage = []
+    swinTFeatures = []
+    xlnetFeatures = []
+    labelFeatures = []
+    for i in range(len(clipFeaturesTextPaths)):
+        if i == 0:
+            clipFeaturesText = torch.load(clipFeaturesTextPaths[i])
+            clipFeaturesImage = torch.load(clipFeaturesImagePaths[i])
+            swinTFeatures = torch.load(swinTFeaturesPaths[i])
+            xlnetFeatures = torch.load(xlnetFeaturesPaths[i])
+            labelFeatures = torch.load(labelFeaturesPaths[i])
+        else:
+            clipFeaturesText = torch.cat((clipFeaturesText, torch.load(clipFeaturesTextPaths[i])), dim=0)
+            clipFeaturesImage = torch.cat((clipFeaturesImage, torch.load(clipFeaturesImagePaths[i])), dim=0)
+            swinTFeatures = torch.cat((swinTFeatures, torch.load(swinTFeaturesPaths[i])), dim=0)
+            xlnetFeatures = torch.cat((xlnetFeatures, torch.load(xlnetFeaturesPaths[i])), dim=0)
+            labelFeatures = torch.cat((labelFeatures, torch.load(labelFeaturesPaths[i])), dim=0)
+
+
+
+    torch.save(clipFeaturesText, datapath + 'clip_features_text_dev.pt')
+    torch.save(clipFeaturesImage, datapath + 'clip_features_image_dev.pt')
+    torch.save(swinTFeatures, datapath + 'swinT_features_dev.pt')
+    torch.save(xlnetFeatures, datapath + 'xlnet_features_dev.pt')
+    torch.save(labelFeatures, datapath + 'label_features_dev.pt')
+
+
+def conbineEngF20231031_test():
+    datapath = './data/mediaeval/'
+
+    clipFeaturesTextPaths = []
+    clipFeaturesImagePaths = []
+    swinTFeaturesPaths = []
+    xlnetFeaturesPaths = []
+    labelFeaturesPaths = []
+    for file in os.listdir(datapath):
+        if 'dev' in file or 'All' in file:
+            continue
+        elif 'clip_features_text' in file:
+            p = datapath + file
+            clipFeaturesTextPaths.append(p)
+        elif 'clip_features_image' in file:
+            p = datapath + file
+            clipFeaturesImagePaths.append(p)
+        elif 'swinT_features' in file:
+            p = datapath + file
+            swinTFeaturesPaths.append(p)
+        elif 'xlnet_features' in file:
+            p = datapath + file
+            xlnetFeaturesPaths.append(p)
+        elif 'label_features' in file:
+            p = datapath + file
+            labelFeaturesPaths.append(p)
+    clipFeaturesTextPaths.sort()
+    clipFeaturesImagePaths.sort()
+    swinTFeaturesPaths.sort()
+    xlnetFeaturesPaths.sort()
+    labelFeaturesPaths.sort()
+    clipFeaturesText = []
+    clipFeaturesImage = []
+    swinTFeatures = []
+    xlnetFeatures = []
+    labelFeatures = []
+    for i in range(len(clipFeaturesTextPaths)):
+        if i == 0:
+            clipFeaturesText = torch.load(clipFeaturesTextPaths[i])
+            clipFeaturesImage = torch.load(clipFeaturesImagePaths[i])
+            swinTFeatures = torch.load(swinTFeaturesPaths[i])
+            xlnetFeatures = torch.load(xlnetFeaturesPaths[i])
+            labelFeatures = torch.load(labelFeaturesPaths[i])
+        else:
+            clipFeaturesText = torch.cat((clipFeaturesText, torch.load(clipFeaturesTextPaths[i])), dim=0)
+            clipFeaturesImage = torch.cat((clipFeaturesImage, torch.load(clipFeaturesImagePaths[i])), dim=0)
+            swinTFeatures = torch.cat((swinTFeatures, torch.load(swinTFeaturesPaths[i])), dim=0)
+            xlnetFeatures = torch.cat((xlnetFeatures, torch.load(xlnetFeaturesPaths[i])), dim=0)
+            labelFeatures = torch.cat((labelFeatures, torch.load(labelFeaturesPaths[i])), dim=0)
+
+    torch.save(clipFeaturesText, datapath + 'clip_features_text_test.pt')
+    torch.save(clipFeaturesImage, datapath + 'clip_features_image_test.pt')
+    torch.save(swinTFeatures, datapath + 'swinT_features_test.pt')
+    torch.save(xlnetFeatures, datapath + 'xlnet_features_test.pt')
+    torch.save(labelFeatures, datapath + 'label_features_test.pt')
+
 if __name__ == '__main__':
-    test20230912()
+    # test20230912()
+    conbineEngF20231031_dev()
+    conbineEngF20231031_test()

@@ -208,6 +208,7 @@ if __name__ == "__main__":
 
         xlnet_features = []
         swinT_features = []
+        label_features = []
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
         swinTmodel = swin_base_patch4_window12_384_model(device)
@@ -217,6 +218,7 @@ if __name__ == "__main__":
         for line in lines:
             all_data = json.loads(line)
 
+            label = all_data["label"]
             text = all_data["content"]
 
             text = re.sub(r'#(\w+)\s', r'<SEP>\1<SEP>', text)
@@ -251,25 +253,49 @@ if __name__ == "__main__":
 
                         xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
 
-                        clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
-                        clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
-                        swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
-                        xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+                        if(len(clip_features_text) < 1):
+                            clip_features_text = text_encoded.to('cpu')
+                            clip_features_image = image_feature.to('cpu')
+                            swinT_features = swinT_feature.to('cpu')
+                            xlnet_features = xlnet_feature.to('cpu')
+                            label_features = torch.tensor(label).unsqueeze(0)
+                        else:
+                            clip_features_text = torch.cat((clip_features_text, text_encoded.to('cpu')), 0)
+                            clip_features_image = torch.cat((clip_features_image, image_feature.to('cpu')), 0)
+                            swinT_features = torch.cat((swinT_features, swinT_feature.to('cpu')), 0)
+                            xlnet_features = torch.cat((xlnet_features, xlnet_feature.to('cpu')), 0)
+                            label_features = torch.cat((label_features, torch.tensor(label).unsqueeze(0)), 0)
+
+                        # clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
+                        # clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
+                        # swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
+                        # xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
                     except:
                         continue
             # break
 
         # np.array(AAAI2vector_sentences).tofile('./AAAI_xlnet_larger_cls_01.bin')
-        np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
-        np.array(clip_features_image).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.bin')
-        np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
-        np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
+        # np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
+        # np.array(clip_features_image).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.bin')
+        # np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
+        # np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
+        torch.save(clip_features_text, save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.pt')
+        torch.save(clip_features_image, save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.pt')
+        torch.save(swinT_features, save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.pt')
+        torch.save(xlnet_features, save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.pt')
+        torch.save(label_features, save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_label_features.pt')
+
+        del clip_features_text
+        del clip_features_image
+        del swinT_features
+        del xlnet_features
+        del label_features
 
     ### get json file
     def get_json_file(path):
         json_file = []
         for file in os.listdir(path):
-            if file.endswith('.json'):
+            if file.endswith('.json') and '2015' not in file:
                 json_file.append(file)
         return json_file
 
