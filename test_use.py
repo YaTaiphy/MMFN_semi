@@ -1,3 +1,4 @@
+import math
 import torch
 from torch import nn
 from PIL import Image
@@ -93,3 +94,15 @@ if __name__ == '__main__':
     result = array1d.unsqueeze(1) * array2d
     print("Result:", result)
     print("Result shape:", result.shape)  # 输出为 (10, 20)
+    
+    input_dim = 1024
+    output_dim = 512
+    expert_hidden_layers = []
+    expert_hidden_layers_dim = 3
+    TAlog = math.log2(input_dim/output_dim)/(expert_hidden_layers_dim)
+    next_dim = input_dim
+    for i in range(expert_hidden_layers_dim - 1):
+        ta_dim = int(next_dim/(2**TAlog))
+        expert_hidden_layers.append(ta_dim)
+        next_dim = ta_dim
+    print(expert_hidden_layers)

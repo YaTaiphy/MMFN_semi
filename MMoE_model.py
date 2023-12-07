@@ -3,14 +3,25 @@
 import torch
 import torch.nn as nn
 import numpy as np
-
+import math
 
 class Expert(nn.Module):
     def __init__(self,input_dim,output_dim): #input_dim代表输入维度，output_dim代表输出维度
         super(Expert, self).__init__()
         
         p=0
-        expert_hidden_layers = [64,32]
+        # expert_hidden_layers = [64,32]
+        
+        ## 修改为动态层数
+        expert_hidden_layers = []
+        expert_hidden_layers_dim = 3
+        TAlog = math.log2(input_dim/output_dim)/(expert_hidden_layers_dim)
+        next_dim = input_dim
+        for i in range(expert_hidden_layers_dim - 1):
+            ta_dim = int(next_dim/(2**TAlog))
+            expert_hidden_layers.append(int(next_dim/(2**TAlog)))
+            next_dim = ta_dim
+            
         self.expert_layer = nn.Sequential(
                             nn.Linear(input_dim, expert_hidden_layers[0]),
                             nn.ReLU(),
@@ -27,9 +38,9 @@ class Expert(nn.Module):
         out = self.expert_layer(x)
         return out
 
-class Expert_Gate(nn.Module):
+class MMoE_Expert_Gate(nn.Module):
     def __init__(self,feature_dim,expert_dim,n_expert,n_task,use_gate=True): #feature_dim:输入数据的维数  expert_dim:每个神经元输出的维数  n_expert:专家数量  n_task:任务数(gate数)  use_gate：是否使用门控，如果不使用则各个专家取平均
-        super(Expert_Gate, self).__init__()
+        super(MMoE_Expert_Gate, self).__init__()
         self.n_task = n_task
         self.use_gate = use_gate
         
@@ -73,7 +84,7 @@ class MMoE(nn.Module):
         super(MMoE, self).__init__()
         
         self.use_gate = use_gate
-        self.Expert_Gate = Expert_Gate(feature_dim=feature_dim,expert_dim=expert_dim,n_expert=n_expert,n_task=n_task,use_gate=use_gate)
+        self.Expert_Gate = MMoE_Expert_Gate(feature_dim=feature_dim,expert_dim=expert_dim,n_expert=n_expert,n_task=n_task,use_gate=use_gate)
         
         '''Tower1'''
         p1 = 0 
@@ -111,9 +122,20 @@ class MMoE(nn.Module):
         return out1,out2
     
 if __name__ == '__main__':
-    Model = MMoE(feature_dim=128,expert_dim=32,n_expert=4,n_task=4,use_gate=True)
+    Model = MMoE_Expert_Gate(feature_dim=1024,expert_dim=512,n_expert=4,n_task=4,use_gate=True)
 
-    input_test = torch.randn(32,128)
-    output = Model(input_test)
+    ## 一下为处理如xlnet 二维特征的方法参考， (batch, size, size)
+    # 
+    input_test = torch.randn(12,32,128) 
+    a = 0
+    for x in input_test:
+        a = Model(x)
+        break  
+    TA_output = Model(input_test.view(-1, 128))
+    TA_output = [single.view(12, 32, -1) for single in TA_output]
+    
+
+    
+    # output = Model(input_test)
     nParams = sum([p.nelement() for p in Model.parameters()])
     print('* number of parameters: %d' % nParams)

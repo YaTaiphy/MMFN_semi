@@ -10,7 +10,7 @@ MMFN_config ={
 
     # xlnet output = batch * xlnet_max_length * xlnet_size
     "XLNET_size" : 768,
-    "xlent_max_length" : 144,
+    "xlnet_max_length" : 144,
 
 
     "batch_size" : 32,
@@ -19,4 +19,7 @@ MMFN_config ={
     "k_dim" : 256,
     "v_dim" : 256 ,
     "num_heads" : 16,
+    
+    "expert_dim": 512,
+    "n_expert": 9,
 }
