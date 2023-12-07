@@ -61,8 +61,9 @@ class CTCoAttentionTransformer(nn.Module):
         self.v_dim = MMFN_config["v_dim"]
         self.num_heads = MMFN_config["num_heads"]
 
-        self.mmAttention = nn.MultiheadAttention(self.k_dim, self.num_heads, batch_first=True)
-
+        # pytorch 2.1和 1.8写法区别·
+        # self.mmAttention = nn.MultiheadAttention(embed_dim=self.k_dim, num_heads=self.num_heads, batch_first=True)
+        self.mmAttention = nn.MultiheadAttention(embed_dim=self.k_dim, num_heads=self.num_heads)
         self.W_k = nn.Parameter(torch.randn(self.d_model, self.k_dim))
         self.W_v = nn.Parameter(torch.randn(self.d_model, self.v_dim))
         self.W_q = nn.Parameter(torch.randn(self.d_model, self.k_dim))
@@ -197,7 +198,7 @@ class MMFN_classifier(torch.nn.Module):
         self.Linear = nn.Linear(1024, 2)
 
     def forward(self, inputs_xlnet, inputs_swin, inputs_clip_text, inputs_clip_img):
-        batch_size = input_xlnet.shape[0]
+        batch_size = inputs_xlnet.shape[0]
         
         TA_xlnet = self.modelMoE_Xlnet(inputs_xlnet.view(-1, MMFN_config["XLNET_size"]))
         TA_xlnet = [single.view(batch_size, MMFN_config["xlnet_max_length"], -1) for single in TA_xlnet]
