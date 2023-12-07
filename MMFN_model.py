@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 from MMFN_config import MMFN_config
-from MMoE_model import MMoE_Expert_Gate
+from iMMoE_model import iMMoE_Expert_Gate
 
 
 class MMFN_semi_Texture_Branch(torch.nn.Module):
@@ -163,32 +163,36 @@ class MMFN_classifier(torch.nn.Module):
         super(MMFN_classifier, self).__init__()
         self.device = device
 
-        self.modelMoE_Xlnet = MMoE_Expert_Gate(
+        self.modelMoE_Xlnet = iMMoE_Expert_Gate(
             feature_dim = MMFN_config['XLNET_size'],
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
-            n_task = 2
+            n_task = 2,
+            token_attention_num= 8
             )
         
-        self.modelMoE_Swin = MMoE_Expert_Gate(
+        self.modelMoE_Swin = iMMoE_Expert_Gate(
             feature_dim = MMFN_config['SWIN_size'],
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
-            n_task = 2
+            n_task = 2,
+            token_attention_num= 8
             )
         
-        self.modelMoE_CLIPT = MMoE_Expert_Gate(
+        self.modelMoE_CLIPT = iMMoE_Expert_Gate(
             feature_dim = MMFN_config['CLIP_size'],
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
-            n_task = 2
+            n_task = 2,
+            token_attention_num= 8
             )
         
-        self.modelMoE_CLIPV = MMoE_Expert_Gate(
+        self.modelMoE_CLIPV = iMMoE_Expert_Gate(
             feature_dim = MMFN_config['CLIP_size'],
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
-            n_task = 2
+            n_task = 2,
+            token_attention_num= 8
             )
         
         self.modelTB = MMFN_semi_Texture_Branch(device)
