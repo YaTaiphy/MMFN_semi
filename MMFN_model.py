@@ -168,7 +168,7 @@ class MMFN_classifier(torch.nn.Module):
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
             n_task = 2,
-            token_attention_num= 8
+            token_attention_num= 4
             )
         
         self.modelMoE_Swin = iMMoE_Expert_Gate(
@@ -176,7 +176,7 @@ class MMFN_classifier(torch.nn.Module):
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
             n_task = 2,
-            token_attention_num= 8
+            token_attention_num= 4
             )
         
         self.modelMoE_CLIPT = iMMoE_Expert_Gate(
@@ -184,7 +184,7 @@ class MMFN_classifier(torch.nn.Module):
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
             n_task = 2,
-            token_attention_num= 8
+            token_attention_num= 4
             )
         
         self.modelMoE_CLIPV = iMMoE_Expert_Gate(
@@ -192,7 +192,7 @@ class MMFN_classifier(torch.nn.Module):
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
             n_task = 2,
-            token_attention_num= 8
+            token_attention_num= 4
             )
         
         self.modelTB = MMFN_semi_Texture_Branch(device)
@@ -261,9 +261,9 @@ if __name__ == '__main__':
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
     model = MMFN_classifier("cuda:1")
     model.to("cuda:1")
-    input_xlnet = torch.randn(32, 144, 768).to(device)
-    input_swin = torch.randn(32, 144, 1024).to(device)
-    input_clip_text = torch.randn(32, 512).to(device)
-    input_clip_img = torch.randn(32, 512).to(device)
+    input_xlnet = torch.randn(250, 144, 768).to(device)
+    input_swin = torch.randn(250, 144, 1024).to(device)
+    input_clip_text = torch.randn(250, 512).to(device)
+    input_clip_img = torch.randn(250, 512).to(device)
     output = model(input_xlnet, input_swin, input_clip_text, input_clip_img)
     print(output.shape)
