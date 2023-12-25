@@ -75,7 +75,7 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
 
 
 def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './data/weibo16/'):
-    type_name = 'MMFN_semiChs_' + ext
+    type_name = 'MMFN_semiEng_' + ext
 
     model_save_path = './exist_model/' + type_name
 
