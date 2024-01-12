@@ -326,7 +326,7 @@ if __name__ == "__main__":
                     ResNet_features.append(ResNet_feature)
                 except:
                     continue
-            # break
+                break
 
         # np.array(AAAI2vector_sentences).tofile('./AAAI_xlnet_larger_cls_01.bin')
         # np.array(clip_features_text).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_text.bin')
@@ -334,7 +334,7 @@ if __name__ == "__main__":
         # np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
         # np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
         np.array(ResNet_features).tofile(
-            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_vgg-19_features.bin')
+            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_ResNet_features.bin')
 
     ### get json file
     def get_json_file(path):
