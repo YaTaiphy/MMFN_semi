@@ -38,4 +38,45 @@ def test20230912():
     print("res %d/%d" % (j, lengh))
 
 if __name__ == '__main__':
-    test20230912()
+    # test20230912()
+    # import torch
+    # import torchvision.transforms as transforms
+    # from torchvision.models import resnet50
+    # from PIL import Image
+    # ResNet_model = resnet50(pretrained=False)
+    # ResNet_model.load_state_dict(torch.load("./pre-trained-model/resnet50-19c8e357.pth"))
+    # ResNet_model.eval()
+    
+    # ResNet_model_2048 = torch.nn.Sequential(*(list(ResNet_model.children())[:-1]))
+    
+    # transform = transforms.Compose([
+    #     transforms.Resize((224, 224)),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    # ])
+    
+    # image_path = "./temp/pigFish_01.jpg"
+    # image = Image.open(image_path).convert('RGB')
+    # input_image = transform(image).unsqueeze(0)
+
+    # # 6. 使用模型进行推理
+    # with torch.no_grad():
+    #     output = ResNet_model_2048(input_image)
+
+    # # 7. 提取特征向量
+    # feature_vector = output.squeeze().numpy()
+
+    # # 输出特征向量的形状
+    # print("Feature vector shape:", feature_vector.shape)
+    a = torch.load("./data/weibo16/label_single_16.pt")
+    b = a.numpy()
+    mark = 1
+    cout = 0
+    for each in b:
+        if each == mark:
+            cout = cout + 1
+        else:
+            mark = abs(abs(mark) - 1)
+            print(cout)
+            cout = 1
+    print(cout)

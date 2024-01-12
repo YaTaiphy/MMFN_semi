@@ -9,6 +9,7 @@ MMFN_config ={
     "SWIN_size" : 1024,
     
     "VGG19_size" : 4096,
+    "ResNet_size" : 2048,
 
     # xlnet output = batch * xlnet_max_length * xlnet_size
     "XLNET_size" : 768,
