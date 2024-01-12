@@ -3,7 +3,7 @@ import os
 
 import torch
 from PIL import Image
-# from transformers import SwinModel, AutoFeatureExtractor, XLNetTokenizer, XLNetModel, XLNetConfig
+from transformers import SwinModel, AutoFeatureExtractor, XLNetTokenizer, XLNetModel, XLNetConfig
 import clip
 import numpy as np
 import cn_clip.clip as cnClip
@@ -11,33 +11,33 @@ from cn_clip.clip import load_from_name
 import langid
 import json
 import torchvision.transforms as transforms
-from torchvision.models import resnet50
+from torchvision.models import resnet50, vgg19
 
-# class swin_base_patch4_window12_384_model(torch.nn.Module):
-#     def __init__(self, device):
-#         super(swin_base_patch4_window12_384_model, self).__init__()
-#         self.device = device
-#         self.pre_train_model = SwinModel.from_pretrained('./pre-trained-model/swin-base-patch4-window12-384-in22k')
-#         self.pre_train_model.to(device)
-#         for param in self.pre_train_model.parameters():
-#             param.requires_grad = False
-#         self.pre_train_model.eval()
+class swin_base_patch4_window12_384_model(torch.nn.Module):
+    def __init__(self, device):
+        super(swin_base_patch4_window12_384_model, self).__init__()
+        self.device = device
+        self.pre_train_model = SwinModel.from_pretrained('./pre-trained-model/swin-base-patch4-window12-384-in22k')
+        self.pre_train_model.to(device)
+        for param in self.pre_train_model.parameters():
+            param.requires_grad = False
+        self.pre_train_model.eval()
 
-#         self.feature_extractor = AutoFeatureExtractor.from_pretrained('../co-attention/swin-base-patch4-window12-384-in22k')
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained('./pre-trained-model/swin-base-patch4-window12-384-in22k')
 
-#     def forward(self, inputs):
-#         return self.pre_train_model(**inputs)
+    def forward(self, inputs):
+        return self.pre_train_model(**inputs)
 
-#     def get_feature_batch(self, image):
-#         inputs = self.feature_extractor(images=image, return_tensors="pt")
-#         inputs = inputs.to(self.device)
-#         return inputs
+    def get_feature_batch(self, image):
+        inputs = self.feature_extractor(images=image, return_tensors="pt")
+        inputs = inputs.to(self.device)
+        return inputs
 
-#     def get_feature(self, images):
-#         inputs = self.feature_extractor(images=images, return_tensors="pt")
-#         inputs = inputs.to(self.device)
-#         outputs = self.pre_train_model(**inputs)
-#         return outputs
+    def get_feature(self, images):
+        inputs = self.feature_extractor(images=images, return_tensors="pt")
+        inputs = inputs.to(self.device)
+        outputs = self.pre_train_model(**inputs)
+        return outputs
 
 
 
@@ -46,97 +46,117 @@ ResNet_model.load_state_dict(torch.load("./pre-trained-model/resnet50-19c8e357.p
 ResNet_model.eval()
 
 ResNet_model_2048 = torch.nn.Sequential(*(list(ResNet_model.children())[:-1]))
-
+ResNet_model_2048.to('cuda')
+ResNet_model_2048.eval()
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
+
+vgg_model_4096 = vgg19(pretrained=True)
+new_classifier = torch.nn.Sequential(*list(vgg_model_4096.children())[-1][:6])
+vgg_model_4096.classifier = new_classifier
+vgg_model_4096.to('cuda')
+vgg_model_4096 = vgg_model_4096.eval()
+trans = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+def vgg19_img_process(img_path):
+    im = Image.open(img_path).convert('RGB')
+    im = trans(im).to('cuda')
+    im.unsqueeze_(dim=0)
+    img_vector = vgg_model_4096(im).data.cpu().numpy()
+    return img_vector
+
 def ResNet_img_process(image_path):
     image = Image.open(image_path).convert('RGB')
-    input_image = transform(image).unsqueeze(0)
+    input_image = transform(image).unsqueeze(0).to('cuda')
         # 6. 使用模型进行推理
     with torch.no_grad():
         output = ResNet_model_2048(input_image)
 
     # 7. 提取特征向量
-    feature_vector = output.squeeze().numpy()
+    feature_vector = output.squeeze().cpu().numpy()
     
     return feature_vector
     
 
-# class xlnet_base_cased_model(torch.nn.Module):
-#     def __init__(self, max_length, device):
-#         super(xlnet_base_cased_model, self).__init__()
+class xlnet_base_cased_model(torch.nn.Module):
+    def __init__(self, max_length, device):
+        super(xlnet_base_cased_model, self).__init__()
 
-#         self.max_length = max_length
+        self.max_length = max_length
 
-#         self.device = device
-#         self.model_config = XLNetConfig.from_pretrained('./pre-trained-model/xlnet-base-cased')
-#         self.pre_train_model = XLNetModel.from_pretrained('./pre-trained-model/xlnet-base-cased', config = self.model_config)
-#         self.pre_train_model.to(device)
-#         for param in self.pre_train_model.parameters():
-#             param.requires_grad = False
-#         self.pre_train_model.eval()
+        self.device = device
+        self.model_config = XLNetConfig.from_pretrained('./pre-trained-model/xlnet-base-cased')
+        self.pre_train_model = XLNetModel.from_pretrained('./pre-trained-model/xlnet-base-cased', config = self.model_config)
+        self.pre_train_model.to(device)
+        for param in self.pre_train_model.parameters():
+            param.requires_grad = False
+        self.pre_train_model.eval()
 
-#         self.tokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/xlnet-base-cased')
+        self.tokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/xlnet-base-cased')
 
-#     def forward(self, inputs):
-#         return self.pre_train_model(inputs)
+    def forward(self, inputs):
+        return self.pre_train_model(inputs)
 
-#     def get_feature(self, sentence):
-#         sentence = '<cls>' + sentence
-#         tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
-#         if(len(tokenized_text) < self.max_length):
-#             tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
+    def get_feature(self, sentence):
+        sentence = '<cls>' + sentence
+        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
+        if(len(tokenized_text) < self.max_length):
+            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
 
-#         outputs = self.pre_train_model(torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1))
-#         return outputs
+        outputs = self.pre_train_model(torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1))
+        return outputs
 
-#     def get_feature_batch(self, sentence):
-#         sentence = '<cls>' + sentence
-#         tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
-#         if(len(tokenized_text) < self.max_length):
-#             tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
+    def get_feature_batch(self, sentence):
+        sentence = '<cls>' + sentence
+        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
+        if(len(tokenized_text) < self.max_length):
+            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
 
-#         return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
+        return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
 
-# class chinese_xlnet_mid_model(torch.nn.Module):
-#     def __init__(self, max_length, device):
-#         super(chinese_xlnet_mid_model, self).__init__()
+class chinese_xlnet_mid_model(torch.nn.Module):
+    def __init__(self, max_length, device):
+        super(chinese_xlnet_mid_model, self).__init__()
 
-#         self.max_length = max_length
+        self.max_length = max_length
 
-#         self.device = device
-#         self.model_config = XLNetConfig.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
-#         self.pre_train_model = XLNetModel.from_pretrained('./pre-trained-model/chinese-xlnet-mid', config = self.model_config)
-#         self.pre_train_model.to(device)
-#         for param in self.pre_train_model.parameters():
-#             param.requires_grad = False
-#         self.pre_train_model.eval()
+        self.device = device
+        self.model_config = XLNetConfig.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
+        self.pre_train_model = XLNetModel.from_pretrained('./pre-trained-model/chinese-xlnet-mid', config = self.model_config)
+        self.pre_train_model.to(device)
+        for param in self.pre_train_model.parameters():
+            param.requires_grad = False
+        self.pre_train_model.eval()
 
-#         self.tokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
+        self.tokenizer = XLNetTokenizer.from_pretrained('./pre-trained-model/chinese-xlnet-mid')
 
-#     def forward(self, inputs):
-#         return self.pre_train_model(inputs)
+    def forward(self, inputs):
+        return self.pre_train_model(inputs)
 
-#     def get_feature(self, sentence):
-#         sentence = '<cls>' + sentence
-#         tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
-#         if(len(tokenized_text) < self.max_length):
-#             tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
+    def get_feature(self, sentence):
+        sentence = '<cls>' + sentence
+        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
+        if(len(tokenized_text) < self.max_length):
+            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
 
-#         outputs = self.pre_train_model(torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1))
-#         return outputs
+        outputs = self.pre_train_model(torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1))
+        return outputs
 
-#     def get_feature_batch(self, sentence):
-#         sentence = '<cls>' + sentence
-#         tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
-#         if(len(tokenized_text) < self.max_length):
-#             tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
+    def get_feature_batch(self, sentence):
+        sentence = '<cls>' + sentence
+        tokenized_text = self.tokenizer.tokenize(sentence)[:self.max_length]
+        if(len(tokenized_text) < self.max_length):
+            tokenized_text = tokenized_text + ['<pad>'] * (self.max_length - len(tokenized_text))
 
-#         return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
+        return torch.tensor([self.tokenizer.convert_tokens_to_ids(tokenized_text)]).to(self.device).view(1, -1)
 
 
 def get_clipEng(sentence, imagePath, device):
@@ -276,6 +296,11 @@ if __name__ == "__main__":
     ### and here is a bad code, but I don't want to change it
     ### however, the only thing I want to say is that FUCK ***
     def read_json_and_save_feature(json_file, save_base_path):
+        if 'nonrumor' in json_file:
+            label = 1
+        else:
+            label = 0
+        
         f = open(json_file, 'r', encoding='utf-8')
         lines = f.readlines()
         f.close()
@@ -286,13 +311,16 @@ if __name__ == "__main__":
         xlnet_features = []
         swinT_features = []
         bert_features = []
+        vgg19_features = []
         ResNet_features = []
+        labels = []
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
-        # swinTmodel = swin_base_patch4_window12_384_model(device)
-        # xlnetModel = chinese_xlnet_mid_model(144, device)
-        # bertModel = chinese_xlnet_mid_model(144, device)
-
+        swinTmodel = swin_base_patch4_window12_384_model(device)
+        xlnetModel = chinese_xlnet_mid_model(144, device)
+        bertModel = chinese_xlnet_mid_model(144, device)
+        cout = 0
+        mark = 0
         for line in lines:
             all_data = json.loads(line)
 
@@ -313,17 +341,60 @@ if __name__ == "__main__":
 
                     imagePath = os.path.split(json_file)[0]+'/pic/' + image
                     image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
-                    # swinT_feature = swinTmodel.get_feature(image).last_hidden_state
-
-                    # xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
-
-                    # clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
-                    # clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
-                    # swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
-                    # xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+                    swinT_feature = swinTmodel.get_feature(image).last_hidden_state
+                    bert_feature = bertModel.get_feature(text).last_hidden_state
+                    xlnet_feature = xlnetModel.get_feature(text).last_hidden_state
 
                     ResNet_feature = ResNet_img_process(image_path=imagePath)
+                    vgg19_feature = vgg19_img_process(imagePath)
+                    
+                    clip_features_text.append(text_encoded.to('cpu').detach().numpy().reshape(-1))
+                    clip_features_image.append(image_feature.to('cpu').detach().numpy().reshape(-1))
+                    swinT_features.append(swinT_feature.to('cpu').detach().numpy().reshape(-1))
+                    xlnet_features.append(xlnet_feature.to('cpu').detach().numpy().reshape(-1))
+                    bert_features.append(bert_feature.to('cpu').detach().numpy().reshape(-1))
+                    vgg19_features.append(vgg19_feature.reshape(-1))
                     ResNet_features.append(ResNet_feature)
+                    
+                    if cout >= 5000:
+                        cout = 0
+                        print("saving.....")
+                        np.array(clip_features_text).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_clip_features_text_' + str(mark) + '.bin')
+                        np.array(clip_features_image).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_clip_features_image_' + str(mark) + '.bin')
+                        np.array(swinT_features).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_swinT_features_' + str(mark) + '.bin')
+                        np.array(xlnet_features).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_xlnet_features_' + str(mark) + '.bin')
+                        np.array(bert_features).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_bert_features_' + str(mark) + '.bin')
+                        np.array(vgg19_features).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_vgg-19_features_' + str(mark) + '.bin')
+                        np.array(vgg19_features).tofile(
+                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_resnet_features_' + str(mark) + '.bin')
+                        del clip_features_text
+                        del clip_features_image
+                        del swinT_features
+                        del xlnet_features
+                        del bert_features
+                        del vgg19_features
+                        del ResNet_features
+                        clip_features_text = []
+                        clip_features_image = []
+                        swinT_features = []
+                        xlnet_features = []
+                        bert_features = []
+                        vgg19_features = []
+                        ResNet_features = []
+                        mark = mark + 1
                 except:
                     continue
                 break
