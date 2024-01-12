@@ -314,6 +314,7 @@ if __name__ == "__main__":
         vgg19_features = []
         ResNet_features = []
         labels = []
+        sentences = []
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
         swinTmodel = swin_base_patch4_window12_384_model(device)
@@ -355,30 +356,35 @@ if __name__ == "__main__":
                     bert_features.append(bert_feature.to('cpu').detach().numpy().reshape(-1))
                     vgg19_features.append(vgg19_feature.reshape(-1))
                     ResNet_features.append(ResNet_feature)
+                    sentences.append(text)
                     
+                    cout = cout + 1
                     if cout >= 5000:
                         cout = 0
                         print("saving.....")
+                        with open(save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_content_text_' + str(mark) + '.json', 'w', encoding='utf-8') as json_write_file:
+                            json.dump(sentences, json_write_file)
                         np.array(clip_features_text).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_clip_features_text_' + str(mark) + '.bin')
                         np.array(clip_features_image).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_clip_features_image_' + str(mark) + '.bin')
                         np.array(swinT_features).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_swinT_features_' + str(mark) + '.bin')
                         np.array(xlnet_features).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_xlnet_features_' + str(mark) + '.bin')
                         np.array(bert_features).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_bert_features_' + str(mark) + '.bin')
                         np.array(vgg19_features).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_vgg-19_features_' + str(mark) + '.bin')
                         np.array(vgg19_features).tofile(
-                            save_base_path + '/0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_resnet_features_' + str(mark) + '.bin')
                         del clip_features_text
                         del clip_features_image
@@ -404,8 +410,41 @@ if __name__ == "__main__":
         # np.array(clip_features_image).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_clip_features_image.bin')
         # np.array(swinT_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_swinT_features.bin')
         # np.array(xlnet_features).tofile(save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_xlnet_features.bin')
-        np.array(ResNet_features).tofile(
-            save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_ResNet_features.bin')
+        # np.array(ResNet_features).tofile(
+        #     save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_ResNet_features.bin')
+        cout = 0
+        print("saving.....")
+        with open(save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_content_text_' + str(mark) + '.json', 'w', encoding='utf-8') as json_write_file:
+            json.dump(sentences, json_write_file)
+        np.array(clip_features_text).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_clip_features_text_' + str(mark) + '.bin')
+        np.array(clip_features_image).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_clip_features_image_' + str(mark) + '.bin')
+        np.array(swinT_features).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_swinT_features_' + str(mark) + '.bin')
+        np.array(xlnet_features).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_xlnet_features_' + str(mark) + '.bin')
+        np.array(bert_features).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_bert_features_' + str(mark) + '.bin')
+        np.array(vgg19_features).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_vgg-19_features_' + str(mark) + '.bin')
+        np.array(vgg19_features).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_resnet_features_' + str(mark) + '.bin')
+        del clip_features_text
+        del clip_features_image
+        del swinT_features
+        del xlnet_features
+        del bert_features
+        del vgg19_features
+        del ResNet_features
 
     ### get json file
     def get_json_file(path):
