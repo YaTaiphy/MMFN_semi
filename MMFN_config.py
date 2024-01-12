@@ -22,4 +22,6 @@ MMFN_config ={
     
     "expert_dim": 512,
     "n_expert": 9,
+    
+    "LSTM_"
 }
