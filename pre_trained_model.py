@@ -20,7 +20,7 @@ class swin_base_patch4_window12_384_model(torch.nn.Module):
             param.requires_grad = False
         self.pre_train_model.eval()
 
-        self.feature_extractor = AutoFeatureExtractor.from_pretrained('../co-attention/swin-base-patch4-window12-384-in22k')
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained('./pre-trained-model/swin-base-patch4-window12-384-in22k')
 
     def forward(self, inputs):
         return self.pre_train_model(**inputs)

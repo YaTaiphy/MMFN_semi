@@ -90,8 +90,8 @@ class DataSetMMFN_semiChs(Dataset):
 
 def data_get_binChs(paths):
     for path in paths:
-        if 'xlnet' in path:
-            xlnet_features = torch.load(path)
+        if 'bert' in path:
+            bert_features = torch.load(path)
         elif 'swin' in path:
             swin_features = torch.load(path)
         elif 'text' in path:
@@ -100,7 +100,7 @@ def data_get_binChs(paths):
             clip_img_features = torch.load(path)
         elif 'label' in path:
             label = torch.load(path)
-    return xlnet_features, swin_features, clip_txt_features, clip_img_features, label
+    return bert_features, swin_features, clip_txt_features, clip_img_features, label
 
 if __name__ == '__main__':
     abs_path = './data/weibo16/'
