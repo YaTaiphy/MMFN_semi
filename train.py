@@ -3,7 +3,7 @@ import torch
 import time
 import os
 from torch import nn, optim
-from dataset_MMFN import DataSetMMFN_semiChs, data_get_binChs
+from dataset_MMFN import DataSetMMFN_semiChs, data_get_binEng_dev, data_get_binEng_test
 from torch.utils.data import random_split, DataLoader
 from tqdm import tqdm
 from sklearn.metrics import recall_score, classification_report, precision_score, precision_recall_fscore_support, \
@@ -47,7 +47,7 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
 
         # _, pred = label_pred.topk(1)
 
-        loss = criterion(detector_decode.to(device), batchLabel.to(device))
+        loss = criterion(detector_decode.to(device), batchLabel.to(device).view(-1))
         running_loss += loss
 
         all_label.append(batchLabel.view(-1).cpu().numpy())
@@ -74,24 +74,25 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
     return running_loss, accuracy, precision, recall, f1, support, report
 
 
-def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './data/weibo16/'):
+def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './data/mediaeval/'):
     type_name = 'MMFN_semiEng_' + ext
 
     model_save_path = './exist_model/' + type_name
-
-    paths = []
-
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
-        
-    for file in os.listdir(datapath):
-        if '.pt' in file and 'single' in file:
+    paths = []
+    datapath = './data/mediaeval_sub/'
+    for file in os.listdir('./data/mediaeval_sub/'):
+        if '.pt' in file:
             p = datapath + file
             paths.append(p)
+    datas_train = data_get_binEng_dev(paths)
+    mm_ds_train = DataSetMMFN_semiChs(datas_train, datas_train[0].shape[0])
+    datas_test = data_get_binEng_test(paths)
+    mm_ds_test = DataSetMMFN_semiChs(datas_test, datas_test[0].shape[0])
+    train_loader = DataLoader(mm_ds_train, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
+    eval_loader = DataLoader(mm_ds_test, batch_size=batch_size, shuffle=False, num_workers=0, drop_last=False)
 
-    datas = data_get_binChs(paths)
-
-    mm_ds = DataSetMMFN_semiChs(datas, datas[0].shape[0])
 
     train_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     fd = open(model_save_path + '/' + type_name + '_log.txt', 'a+')
@@ -101,12 +102,6 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
     model = MMFN_classifier(device)
     model.to(device)
     model.train()
-    train_data, eval_data = random_split(mm_ds,
-                                         [round(0.8 * mm_ds.__len__()),
-                                          mm_ds.__len__() - round(0.8 * mm_ds.__len__())],
-                                         generator=torch.Generator().manual_seed(42))
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
-    eval_loader = DataLoader(eval_data, batch_size=batch_size, shuffle=False, num_workers=0, drop_last=False)
 
     optimizer = optim.Adam(model.parameters(), lr=0.000001)
     criterion = nn.CrossEntropyLoss()
@@ -176,16 +171,9 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
 
 
 if __name__ == '__main__':
-    weibo16_path = './data/weibo16/'
-    weibo21_path = './data/weibo21/'
-
     ext = '123'
     print("begin")
     ext = input("训练即将开始，请输入字段以判明哪次训练：")
-    data_select = input("weibo16 or weibo 21:")
-    if data_select == 'weibo16':
-        datapath = weibo16_path
-    else:
-        datapath = weibo21_path
+
 
     train_process(ext, device=device, epochs=100, batch_size=250)
