@@ -92,7 +92,7 @@ def data_get_binChs(paths):
     for path in paths:
         if 'xlnet' in path:
             xlnet_features = torch.load(path)
-        elif 'swin' in path:
+        elif 'vgg' in path:
             swin_features = torch.load(path)
         elif 'text' in path:
             clip_txt_features = torch.load(path)

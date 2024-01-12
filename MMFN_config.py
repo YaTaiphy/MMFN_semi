@@ -7,6 +7,8 @@ MMFN_config ={
     # swim output last_hidden_state =  1 * 144 * 1024
     "SWIN_max_length" : 144,
     "SWIN_size" : 1024,
+    
+    "VGG19_size" : 4096,
 
     # xlnet output = batch * xlnet_max_length * xlnet_size
     "XLNET_size" : 768,

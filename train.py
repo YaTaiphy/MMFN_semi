@@ -188,4 +188,4 @@ if __name__ == '__main__':
     else:
         datapath = weibo21_path
 
-    train_process(ext, device=device, epochs=100, batch_size=250)
+    train_process(ext, device=device, epochs=30, batch_size=250)
