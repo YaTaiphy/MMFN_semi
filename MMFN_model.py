@@ -255,7 +255,7 @@ if __name__ == '__main__':
     model.to("cuda:1")
     input_xlnet = torch.randn(32, 144, 768).to(device)
     # input_swin = torch.randn(32, 144, 1024).to(device)
-    input_resNet50 = torch.randn(32, 4096).to(device)
+    input_resNet50 = torch.randn(32, 2048).to(device)
     input_clip_text = torch.randn(32, 512).to(device)
     input_clip_img = torch.randn(32, 512).to(device)
     output = model(input_xlnet, input_resNet50, input_clip_text, input_clip_img)

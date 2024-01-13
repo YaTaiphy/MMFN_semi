@@ -405,7 +405,7 @@ if __name__ == "__main__":
                         np.array(vgg19_features).tofile(
                             save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_vgg-19_features_' + str(mark) + '.bin')
-                        np.array(vgg19_features).tofile(
+                        np.array(ResNet_features).tofile(
                             save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_resnet_features_' + str(mark) + '.bin')
                         del clip_features_text
@@ -459,7 +459,7 @@ if __name__ == "__main__":
         np.array(vgg19_features).tofile(
             save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                 0] + '_vgg-19_features_' + str(mark) + '.bin')
-        np.array(vgg19_features).tofile(
+        np.array(ResNet_features).tofile(
             save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                 0] + '_resnet_features_' + str(mark) + '.bin')
         del clip_features_text
