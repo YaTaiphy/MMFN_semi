@@ -1,6 +1,6 @@
 ### 该预训练模型包含以下部分：BERT，CLIP，SWIN-T；可直接使用。
 import os
-
+import gensim
 import torch
 from PIL import Image
 from transformers import SwinModel, AutoFeatureExtractor, XLNetTokenizer, XLNetModel, XLNetConfig
@@ -216,6 +216,28 @@ def spliceJudge(items1, items2):
         return True
     return False
 
+def text_lstm_process(text):
+    model = gensim.models.KeyedVectors.load_word2vec_format('./model/word2vec_weibo.bin', binary=True)
+    max_length=144
+    text_vector=[]
+    cout = 0
+    for word in text:
+        if(cout >= max_length):
+            break
+        try:
+            b = model[word]
+        except Exception:
+            b = model["<unk>"]
+        text_vector.append(b)
+        cout=cout+1
+    while cout < max_length:
+        b = model["<unk>"]
+        text_vector.append(b)
+        cout=cout+1
+        
+    text_vector = np.array(text_vector)
+    return text_vector
+
 def ocr_word(image, reader):
     result = reader.readtext(image)
 
@@ -314,7 +336,7 @@ if __name__ == "__main__":
         vgg19_features = []
         ResNet_features = []
         labels = []
-        sentences = []
+        vector_sentences = []
 
         device = "cuda:1" if torch.cuda.is_available() else "cpu"
         swinTmodel = swin_base_patch4_window12_384_model(device)
@@ -339,7 +361,7 @@ if __name__ == "__main__":
                     sentence.append(text)
                     imageP.append(os.path.split(json_file)[0]+'/pic/' + image)
                     text_encoded, image_feature, similar = get_clipChs(sentence, imageP, device)
-
+                    vector_sentence = text_lstm_process(text)
                     imagePath = os.path.split(json_file)[0]+'/pic/' + image
                     image = Image.open(os.path.split(json_file)[0]+'/pic/' + image)
                     swinT_feature = swinTmodel.get_feature(image).last_hidden_state
@@ -356,15 +378,15 @@ if __name__ == "__main__":
                     bert_features.append(bert_feature.to('cpu').detach().numpy().reshape(-1))
                     vgg19_features.append(vgg19_feature.reshape(-1))
                     ResNet_features.append(ResNet_feature)
-                    sentences.append(text)
+                    vector_sentences.append(vector_sentence.reshape(-1))
                     
                     cout = cout + 1
                     if cout >= 5000:
                         cout = 0
                         print("saving.....")
-                        with open(save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
-                                0] + '_content_text_' + str(mark) + '.json', 'w', encoding='utf-8') as json_write_file:
-                            json.dump(sentences, json_write_file)
+                        np.array(vector_sentences).tofile(
+                            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                                0] + '_vector_sentences_' + str(mark) + '.bin')
                         np.array(clip_features_text).tofile(
                             save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                                 0] + '_clip_features_text_' + str(mark) + '.bin')
@@ -393,6 +415,7 @@ if __name__ == "__main__":
                         del bert_features
                         del vgg19_features
                         del ResNet_features
+                        del vector_sentences
                         clip_features_text = []
                         clip_features_image = []
                         swinT_features = []
@@ -400,6 +423,7 @@ if __name__ == "__main__":
                         bert_features = []
                         vgg19_features = []
                         ResNet_features = []
+                        vector_sentences = []
                         mark = mark + 1
                 except:
                     continue
@@ -414,9 +438,9 @@ if __name__ == "__main__":
         #     save_base_path + '/' + os.path.splitext(os.path.split(json_file)[1])[0] + '_ResNet_features.bin')
         cout = 0
         print("saving.....")
-        with open(save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
-                0] + '_content_text_' + str(mark) + '.json', 'w', encoding='utf-8') as json_write_file:
-            json.dump(sentences, json_write_file)
+        np.array(vector_sentences).tofile(
+            save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
+                0] + '_vector_sentences_' + str(mark) + '.bin')
         np.array(clip_features_text).tofile(
             save_base_path + 'date0112/' + os.path.splitext(os.path.split(json_file)[1])[
                 0] + '_clip_features_text_' + str(mark) + '.bin')
@@ -445,6 +469,7 @@ if __name__ == "__main__":
         del bert_features
         del vgg19_features
         del ResNet_features
+        del vector_sentences
 
     ### get json file
     def get_json_file(path):
