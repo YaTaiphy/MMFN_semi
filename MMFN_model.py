@@ -13,7 +13,7 @@ class MMFN_semi_Texture_Branch(torch.nn.Module):
 
         self.projectionHead = nn.Sequential(
             # nn.Linear(MMFN_config["XLNET_size"] + MMFN_config["CLIP_size"], MMFN_config["XLNET_size"] + MMFN_config["CLIP_size"]),
-            nn.Linear(MMFN_config["expert_dim"]*2, MMFN_config["expert_dim"]*2),
+            nn.Linear(MMFN_config["expert_dim"], MMFN_config["expert_dim"]*2),
             # nn.ReLU(),
             # nn.Linear(MMFN_config["XLNET_size"] + MMFN_config["CLIP_size"], 512),
             nn.Linear(MMFN_config["expert_dim"]*2, 512),
@@ -22,12 +22,12 @@ class MMFN_semi_Texture_Branch(torch.nn.Module):
             # nn.ReLU(),
         )
 
-    def forward(self, inputs_xlnet, inputs_clip):
+    def forward(self, inputs_xlnet):
         avg_inputs_xlnet = nn.functional.avg_pool1d(inputs_xlnet.permute(0, 2, 1), kernel_size=MMFN_config["xlnet_max_length"])
         avg_inputs_xlnet = avg_inputs_xlnet.reshape(inputs_xlnet.shape[0], -1)
 
-        combine_feature = torch.cat((avg_inputs_xlnet, inputs_clip), dim=1)
-        return self.projectionHead(combine_feature)
+        # combine_feature = torch.cat((avg_inputs_xlnet, inputs_clip), dim=1)
+        return self.projectionHead(avg_inputs_xlnet)
 
 class MMFN_semi_Visual_Branch(torch.nn.Module):
     def __init__(self, device):
@@ -36,7 +36,7 @@ class MMFN_semi_Visual_Branch(torch.nn.Module):
 
         self.projectionHead = nn.Sequential(
             # nn.Linear(MMFN_config["SWIN_size"] + MMFN_config["CLIP_size"], MMFN_config["SWIN_size"] + MMFN_config["CLIP_size"]),
-            nn.Linear(MMFN_config["expert_dim"]*2, MMFN_config["expert_dim"]*2),
+            nn.Linear(MMFN_config["expert_dim"], MMFN_config["expert_dim"]*2),
             # nn.ReLU(),
             # nn.Linear(MMFN_config["SWIN_size"] + MMFN_config["CLIP_size"], 512),
             nn.Linear(MMFN_config["expert_dim"]*2, 512),
@@ -45,12 +45,12 @@ class MMFN_semi_Visual_Branch(torch.nn.Module):
             # nn.ReLU(),
         )
 
-    def forward(self, inputs_swin, inputs_clip):
+    def forward(self, inputs_swin):
         avg_inputs_swin = nn.functional.avg_pool1d(inputs_swin.permute(0, 2, 1), kernel_size=MMFN_config["SWIN_max_length"])
         avg_inputs_swin = avg_inputs_swin.reshape(inputs_swin.shape[0], -1)
 
-        combine_feature = torch.cat((avg_inputs_swin, inputs_clip), dim=1)
-        return self.projectionHead(combine_feature)
+        # combine_feature = torch.cat((avg_inputs_swin, inputs_clip), dim=1)
+        return self.projectionHead(avg_inputs_swin)
 
 class CTCoAttentionTransformer(nn.Module):
     def __init__(self, device):
@@ -119,14 +119,14 @@ class Multi_grained_feature_fusion(torch.nn.Module):
 
         self.projectionHead = nn.Sequential(
             # nn.Linear(self.k_dim * 2 + MMFN_config["CLIP_size"] * 2, 1024),
-            nn.Linear(self.k_dim * 2 + MMFN_config["expert_dim"] * 2, 1024),
+            nn.Linear(self.k_dim * 2, 1024),
             nn.Linear(1024, 512),
             nn.Linear(512, 512)
         )
 
-        self.cos_clip = nn.CosineSimilarity(dim=1, eps=1e-6)
+        # self.cos_clip = nn.CosineSimilarity(dim=1, eps=1e-6)
 
-    def forward(self, inputs_xlnet, inputs_swin, inputs_clip_text, inputs_clip_img):
+    def forward(self, inputs_xlnet, inputs_swin):
         inputs_xlnet = self.LinearTexture(inputs_xlnet)
         inputs_swin = self.LinearImage(inputs_swin)
 
@@ -144,18 +144,18 @@ class Multi_grained_feature_fusion(torch.nn.Module):
         output_transformer = self.feed_forward01(output_transformer)
 
 
-        Cos_Clip = self.cos_clip(inputs_clip_text, inputs_clip_img)
+        # Cos_Clip = self.cos_clip(inputs_clip_text, inputs_clip_img)
 
-        output_clip = torch.cat((inputs_clip_text, inputs_clip_img), dim=1)
-        output_clip = self.feed_forward02(output_clip)
+        # output_clip = torch.cat((inputs_clip_text, inputs_clip_img), dim=1)
+        # output_clip = self.feed_forward02(output_clip)
 
-        combine_features = torch.cat((output_transformer, output_clip), dim=1)
+        # combine_features = torch.cat((output_transformer, output_clip), dim=1)
 
-        combine_features = self.projectionHead(combine_features)
+        combine_features = self.projectionHead(output_transformer)
 
-        multi_model_output = Cos_Clip.unsqueeze(1) * combine_features
+        # multi_model_output = Cos_Clip.unsqueeze(1) * combine_features
 
-        return multi_model_output
+        return combine_features
 
 
 class MMFN_classifier(torch.nn.Module):
@@ -177,19 +177,19 @@ class MMFN_classifier(torch.nn.Module):
             n_task = 2
             )
         
-        self.modelMoE_CLIPT = MMoE_Expert_Gate(
-            feature_dim = MMFN_config['CLIP_size'],
-            expert_dim = MMFN_config['expert_dim'],
-            n_expert = MMFN_config['n_expert'],
-            n_task = 2
-            )
+        # self.modelMoE_CLIPT = MMoE_Expert_Gate(
+        #     feature_dim = MMFN_config['CLIP_size'],
+        #     expert_dim = MMFN_config['expert_dim'],
+        #     n_expert = MMFN_config['n_expert'],
+        #     n_task = 2
+        #     )
         
-        self.modelMoE_CLIPV = MMoE_Expert_Gate(
-            feature_dim = MMFN_config['CLIP_size'],
-            expert_dim = MMFN_config['expert_dim'],
-            n_expert = MMFN_config['n_expert'],
-            n_task = 2
-            )
+        # self.modelMoE_CLIPV = MMoE_Expert_Gate(
+        #     feature_dim = MMFN_config['CLIP_size'],
+        #     expert_dim = MMFN_config['expert_dim'],
+        #     n_expert = MMFN_config['n_expert'],
+        #     n_task = 2
+        #     )
         
         self.modelTB = MMFN_semi_Texture_Branch(device)
         self.modelVB = MMFN_semi_Visual_Branch(device)
@@ -197,7 +197,7 @@ class MMFN_classifier(torch.nn.Module):
         
         self.Linear = nn.Linear(1024, 2)
 
-    def forward(self, inputs_xlnet, inputs_swin, inputs_clip_text, inputs_clip_img):
+    def forward(self, inputs_xlnet, inputs_swin):
         batch_size = inputs_xlnet.shape[0]
         
         TA_xlnet = self.modelMoE_Xlnet(inputs_xlnet.view(-1, MMFN_config["XLNET_size"]))
@@ -206,16 +206,16 @@ class MMFN_classifier(torch.nn.Module):
         TA_swin = self.modelMoE_Swin(inputs_swin.view(-1, MMFN_config["SWIN_size"]))
         TA_swin = [single.view(batch_size, MMFN_config["SWIN_max_length"], -1) for single in TA_swin]
         
-        TA_clipT = self.modelMoE_CLIPT(inputs_clip_text)
+        # TA_clipT = self.modelMoE_CLIPT(inputs_clip_text)
         # TA_clipT = [single.view(batch_size, MMFN_config["CLIP_size"], -1) for single in TA_clipT]
         
-        TA_clipV = self.modelMoE_CLIPV(inputs_clip_img)
+        # TA_clipV = self.modelMoE_CLIPV(inputs_clip_img)
         # TA_clipV = [single.view(batch_size, MMFN_config["CLIP_size"], -1) for single in TA_clipV]
         
         
-        output_TB = self.modelTB(TA_xlnet[0], TA_clipT[0])
-        output_VB = self.modelVB(TA_swin[0], TA_clipV[0])
-        output_MFF = self.modelMFF(TA_xlnet[1], TA_swin[1], TA_clipT[1], TA_clipV[1])
+        output_TB = self.modelTB(TA_xlnet[0])
+        output_VB = self.modelVB(TA_swin[0])
+        output_MFF = self.modelMFF(TA_xlnet[1], TA_swin[1])
 
         output = torch.cat((output_TB, output_VB, output_MFF), dim=1)
 
@@ -261,5 +261,5 @@ if __name__ == '__main__':
     input_swin = torch.randn(32, 144, 1024).to(device)
     input_clip_text = torch.randn(32, 512).to(device)
     input_clip_img = torch.randn(32, 512).to(device)
-    output = model(input_xlnet, input_swin, input_clip_text, input_clip_img)
+    output = model(input_xlnet, input_swin)
     print(output.shape)

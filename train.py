@@ -32,16 +32,16 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
 
     all_label = []
     all_pred = []
-    for input_xlnet, input_swin, input_clip_text, input_clip_img, batchLabel in tqdm(dataloads, desc='进度', leave=True, ncols=100):
+    for input_xlnet, input_swin, batchLabel in tqdm(dataloads, desc='进度', leave=True, ncols=100):
         step += 1
         all += batchLabel.view(-1).shape[0]
         if train:
             optimizer.zero_grad()
 
-        input_clip_text = input_clip_text.to(torch.float32)
-        input_clip_img = input_clip_img.to(torch.float32)
+        # input_clip_text = input_clip_text.to(torch.float32)
+        # input_clip_img = input_clip_img.to(torch.float32)
         detector_decode = model(
-            input_xlnet.to(device), input_swin.to(device), input_clip_text.to(device), input_clip_img.to(device))
+            input_xlnet.to(device), input_swin.to(device))
 
         _, pred = detector_decode.topk(1)
 
@@ -188,4 +188,4 @@ if __name__ == '__main__':
     else:
         datapath = weibo21_path
 
-    train_process(ext, device=device, epochs=100, batch_size=250)
+    train_process(ext, device=device, epochs=30, batch_size=250)

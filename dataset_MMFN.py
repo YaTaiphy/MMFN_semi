@@ -12,7 +12,7 @@ class DataSetMMFN_semiChs(Dataset):
         self.length = length
 
     def __getitem__(self, idx: int):
-        return self.data[0][idx], self.data[1][idx], self.data[2][idx], self.data[3][idx], self.data[4][idx]
+        return self.data[0][idx], self.data[1][idx], self.data[2][idx]
 
     def __len__(self):
         return self.length
@@ -94,13 +94,13 @@ def data_get_binChs(paths):
             xlnet_features = torch.load(path)
         elif 'swin' in path:
             swin_features = torch.load(path)
-        elif 'text' in path:
-            clip_txt_features = torch.load(path)
-        elif 'image' in path:
-            clip_img_features = torch.load(path)
+        # elif 'text' in path:
+        #     clip_txt_features = torch.load(path)
+        # elif 'image' in path:
+        #     clip_img_features = torch.load(path)
         elif 'label' in path:
             label = torch.load(path)
-    return xlnet_features, swin_features, clip_txt_features, clip_img_features, label
+    return xlnet_features, swin_features,  label
 
 if __name__ == '__main__':
     abs_path = './data/weibo16/'
