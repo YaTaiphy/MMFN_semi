@@ -100,13 +100,13 @@ class Multi_grained_feature_fusion(torch.nn.Module):
         self.LinearTexture = nn.Linear(MMFN_config["expert_dim"], MMFN_config["d_model"])
         self.LinearImage = nn.Linear(MMFN_config["expert_dim"], MMFN_config["d_model"])
 
-        self.CoAttentionTI = CTCoAttentionTransformer(device)
-        self.CoAttentionIT = CTCoAttentionTransformer(device)
+        # self.CoAttentionTI = CTCoAttentionTransformer(device)
+        # self.CoAttentionIT = CTCoAttentionTransformer(device)
 
         self.feed_forward01 = nn.Sequential(
-            nn.Linear(self.k_dim * 2, self.k_dim * 2),
+            nn.Linear(MMFN_config["expert_dim"] * 2, MMFN_config["expert_dim"] * 2),
             nn.ReLU(),
-            nn.Linear(self.k_dim * 2, self.k_dim * 2)
+            nn.Linear(MMFN_config["expert_dim"] * 2, MMFN_config["expert_dim"] * 2)
         )
 
         self.feed_forward02 = nn.Sequential(
@@ -119,7 +119,7 @@ class Multi_grained_feature_fusion(torch.nn.Module):
 
         self.projectionHead = nn.Sequential(
             # nn.Linear(self.k_dim * 2 + MMFN_config["CLIP_size"] * 2, 1024),
-            nn.Linear(self.k_dim * 2 + MMFN_config["expert_dim"] * 2, 1024),
+            nn.Linear(MMFN_config["expert_dim"] * 2 + MMFN_config["expert_dim"] * 2, 1024),
             nn.Linear(1024, 512),
             nn.Linear(512, 512)
         )
@@ -130,8 +130,10 @@ class Multi_grained_feature_fusion(torch.nn.Module):
         inputs_xlnet = self.LinearTexture(inputs_xlnet)
         inputs_swin = self.LinearImage(inputs_swin)
 
-        output_xlnet, _, _ = self.CoAttentionTI(inputs_xlnet, inputs_swin)
-        output_swin, _, _ = self.CoAttentionIT(inputs_swin, inputs_xlnet)
+        # output_xlnet, _, _ = self.CoAttentionTI(inputs_xlnet, inputs_swin)
+        # output_swin, _, _ = self.CoAttentionIT(inputs_swin, inputs_xlnet)
+        output_xlnet = inputs_xlnet
+        output_swin = inputs_swin
 
         output_xlnet = nn.functional.avg_pool1d(output_xlnet.permute(0, 2, 1), kernel_size=MMFN_config["xlnet_max_length"])
         output_xlnet = output_xlnet.reshape(output_xlnet.shape[0], -1)
