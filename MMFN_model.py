@@ -22,11 +22,11 @@ class MMFN_semi_Texture_Branch(torch.nn.Module):
             # nn.ReLU(),
         )
 
-    def forward(self, inputs_xlnet, inputs_clip):
-        avg_inputs_xlnet = nn.functional.avg_pool1d(inputs_xlnet.permute(0, 2, 1), kernel_size=MMFN_config["xlnet_max_length"])
-        avg_inputs_xlnet = avg_inputs_xlnet.reshape(inputs_xlnet.shape[0], -1)
+    def forward(self, inputs_lstm, inputs_clip):
+        avg_inputs_lstm = nn.functional.avg_pool1d(inputs_lstm.permute(0, 2, 1), kernel_size=MMFN_config["w2v_length"])
+        avg_inputs_lstm = avg_inputs_lstm.reshape(inputs_lstm.shape[0], -1)
 
-        combine_feature = torch.cat((avg_inputs_xlnet, inputs_clip), dim=1)
+        combine_feature = torch.cat((avg_inputs_lstm, inputs_clip), dim=1)
         return self.projectionHead(combine_feature)
 
 class MMFN_semi_Visual_Branch(torch.nn.Module):
@@ -89,6 +89,31 @@ class CTCoAttentionTransformer(nn.Module):
         x = self.norm2(x + ff_output)
         return x, attn_output, attn_output_weights
 
+
+# 定义一个简单的 LSTM 模型
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers):
+        super(LSTMModel, self).__init__()
+
+        # LSTM 层
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+
+        # 全连接层
+        # self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        # LSTM 前向传播
+        out, _ = self.lstm(x)
+
+        # 提取最后一个时间步的输出，作为 LSTM 的表示
+        # out = out[:, -1, :]
+
+        # # 全连接层
+        # out = self.fc(out)
+
+        return out
+
+
 class Multi_grained_feature_fusion(torch.nn.Module):
     def __init__(self, device):
         super(Multi_grained_feature_fusion, self).__init__()
@@ -126,20 +151,20 @@ class Multi_grained_feature_fusion(torch.nn.Module):
 
         self.cos_clip = nn.CosineSimilarity(dim=1, eps=1e-6)
 
-    def forward(self, inputs_xlnet, inputs_swin, inputs_clip_text, inputs_clip_img):
-        inputs_xlnet = self.LinearTexture(inputs_xlnet)
+    def forward(self, inputs_lstm, inputs_swin, inputs_clip_text, inputs_clip_img):
+        inputs_lstm = self.LinearTexture(inputs_lstm)
         inputs_swin = self.LinearImage(inputs_swin)
 
-        output_xlnet, _, _ = self.CoAttentionTI(inputs_xlnet, inputs_swin)
-        output_swin, _, _ = self.CoAttentionIT(inputs_swin, inputs_xlnet)
+        output_lstm, _, _ = self.CoAttentionTI(inputs_lstm, inputs_swin)
+        output_swin, _, _ = self.CoAttentionIT(inputs_swin, inputs_lstm)
 
-        output_xlnet = nn.functional.avg_pool1d(output_xlnet.permute(0, 2, 1), kernel_size=MMFN_config["xlnet_max_length"])
-        output_xlnet = output_xlnet.reshape(output_xlnet.shape[0], -1)
+        output_lstm = nn.functional.avg_pool1d(output_lstm.permute(0, 2, 1), kernel_size=MMFN_config["w2v_length"])
+        output_lstm = output_lstm.reshape(output_lstm.shape[0], -1)
 
         output_swin = nn.functional.avg_pool1d(output_swin.permute(0, 2, 1), kernel_size=MMFN_config["SWIN_max_length"])
         output_swin = output_swin.reshape(output_swin.shape[0], -1)
 
-        output_transformer = torch.cat((output_xlnet, output_swin), dim=1)
+        output_transformer = torch.cat((output_lstm, output_swin), dim=1)
 
         output_transformer = self.feed_forward01(output_transformer)
 
@@ -163,8 +188,14 @@ class MMFN_classifier(torch.nn.Module):
         super(MMFN_classifier, self).__init__()
         self.device = device
 
-        self.modelMoE_Xlnet = MMoE_Expert_Gate(
-            feature_dim = MMFN_config['XLNET_size'],
+        self.lstm = LSTMModel(
+            input_size = MMFN_config["w2v_size"],
+            hidden_size = MMFN_config["hidden_size"],
+            num_layers = MMFN_config["num_layers"]
+        )
+
+        self.modelMoE_lstm = MMoE_Expert_Gate(
+            feature_dim = MMFN_config["hidden_size"],
             expert_dim = MMFN_config['expert_dim'],
             n_expert = MMFN_config['n_expert'],
             n_task = 2
@@ -197,11 +228,13 @@ class MMFN_classifier(torch.nn.Module):
         
         self.Linear = nn.Linear(1024, 2)
 
-    def forward(self, inputs_xlnet, inputs_swin, inputs_clip_text, inputs_clip_img):
-        batch_size = inputs_xlnet.shape[0]
+    def forward(self, inputs_lstm, inputs_swin, inputs_clip_text, inputs_clip_img):
+        batch_size = inputs_lstm.shape[0]
         
-        TA_xlnet = self.modelMoE_Xlnet(inputs_xlnet.view(-1, MMFN_config["XLNET_size"]))
-        TA_xlnet = [single.view(batch_size, MMFN_config["xlnet_max_length"], -1) for single in TA_xlnet]
+        inputs_lstm = self.lstm(inputs_lstm)
+        
+        TA_lstm = self.modelMoE_lstm(inputs_lstm.contiguous().view(-1, MMFN_config["hidden_size"]))
+        TA_lstm = [single.view(batch_size, MMFN_config["w2v_length"], -1) for single in TA_lstm]
         
         TA_swin = self.modelMoE_Swin(inputs_swin.view(-1, MMFN_config["SWIN_size"]))
         TA_swin = [single.view(batch_size, MMFN_config["SWIN_max_length"], -1) for single in TA_swin]
@@ -213,9 +246,9 @@ class MMFN_classifier(torch.nn.Module):
         # TA_clipV = [single.view(batch_size, MMFN_config["CLIP_size"], -1) for single in TA_clipV]
         
         
-        output_TB = self.modelTB(TA_xlnet[0], TA_clipT[0])
+        output_TB = self.modelTB(TA_lstm[0], TA_clipT[0])
         output_VB = self.modelVB(TA_swin[0], TA_clipV[0])
-        output_MFF = self.modelMFF(TA_xlnet[1], TA_swin[1], TA_clipT[1], TA_clipV[1])
+        output_MFF = self.modelMFF(TA_lstm[1], TA_swin[1], TA_clipT[1], TA_clipV[1])
 
         output = torch.cat((output_TB, output_VB, output_MFF), dim=1)
 
@@ -257,9 +290,9 @@ if __name__ == '__main__':
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
     model = MMFN_classifier("cuda:1")
     model.to("cuda:1")
-    input_xlnet = torch.randn(32, 144, 768).to(device)
+    input_lstm = torch.randn(32, 144, 32).to(device)
     input_swin = torch.randn(32, 144, 1024).to(device)
     input_clip_text = torch.randn(32, 512).to(device)
     input_clip_img = torch.randn(32, 512).to(device)
-    output = model(input_xlnet, input_swin, input_clip_text, input_clip_img)
+    output = model(input_lstm, input_swin, input_clip_text, input_clip_img)
     print(output.shape)

@@ -1,4 +1,4 @@
-MMFN_config ={
+MMFN_config = {
     "BERT_size" : 768,
 
     # clip output = batch *  clip_size
@@ -23,5 +23,16 @@ MMFN_config ={
     "expert_dim": 512,
     "n_expert": 9,
     
-    "LSTM_"
+    #### w2v batch*144*32
+    "w2v_length" : 144,
+    "w2v_size" : 32,
+    
+    ## lstm
+    # # 输入特征的大小
+    "input_size" : 32,  
+    # LSTM 隐藏单元的数量
+    "hidden_size" : 128, 
+    # LSTM 层数
+    "num_layers" : 4  
+    
 }
