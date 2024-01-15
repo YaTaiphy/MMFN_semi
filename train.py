@@ -77,8 +77,13 @@ def fit(model, dataloads, optimizer, criterion, device, batch_size, train=True):
 def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './data/weibo16/'):
     type_name = 'MMFN_semiChs_' + ext
 
+    model_save_path = './exist_model/' + type_name
+
     paths = []
 
+    if not os.path.exists(model_save_path):
+        os.makedirs(model_save_path)
+        
     for file in os.listdir(datapath):
         if '.pt' in file and 'single' in file:
             p = datapath + file
@@ -89,7 +94,7 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
     mm_ds = DataSetMMFN_semiChs(datas, datas[0].shape[0])
 
     train_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    fd = open(r'./exist_model/' + type_name + '_log.txt', 'a+')
+    fd = open(model_save_path + '/' + type_name + '_log.txt', 'a+')
     fd.write(train_time)
     fd.close()
 
@@ -154,10 +159,10 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
                    '\n\teval_report' + eval_report
                    )
         print(message)
-        fd = open(r'./exist_model/' + type_name + '_log.txt', 'a+')
+        fd = open(model_save_path + '/' + type_name + '_log.txt', 'a+')
         fd.write(message)
         fd.close()
-        torch.save(model.state_dict(), "./exist_model/" + '_' + type_name + '_' + str(epoch) + '.pth')
+        torch.save(model.state_dict(), model_save_path + '/' + type_name + '_' + str(epoch) + '.pth')
 
     # 访问加载的数据参考
     # loaded_data = np.load('results.npz')
@@ -166,8 +171,8 @@ def train_process(ext, device='cpu', epochs=10, batch_size=32, datapath = './dat
     # loaded_f1 = loaded_data['f1']
     # loaded_support = loaded_data['support']
 
-    np.savez("./exist_model/" + '_' + type_name + '_' + 'train_results.npz', **train_results)
-    np.savez("./exist_model/" + '_' + type_name + '_' + 'eval_results.npz', **eval_results)
+    np.savez(model_save_path + '/' + type_name + '_' + 'train_results.npz', **train_results)
+    np.savez(model_save_path + '/' + type_name + '_' + 'eval_results.npz', **eval_results)
 
 
 if __name__ == '__main__':
@@ -183,4 +188,4 @@ if __name__ == '__main__':
     else:
         datapath = weibo21_path
 
-    train_process(ext, device=device, epochs=100, batch_size=250)
+    train_process(ext, device=device, epochs=30, batch_size=250)
