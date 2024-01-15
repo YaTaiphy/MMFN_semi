@@ -191,11 +191,12 @@ class MMFN_classifier(torch.nn.Module):
             n_task = 2
             )
         
-        self.modelTB = MMFN_semi_Texture_Branch(device)
-        self.modelVB = MMFN_semi_Visual_Branch(device)
+        # self.modelTB = MMFN_semi_Texture_Branch(device)
+        # self.modelVB = MMFN_semi_Visual_Branch(device)
         self.modelMFF = Multi_grained_feature_fusion(device)
         
-        self.Linear = nn.Linear(1024, 2)
+        # self.Linear = nn.Linear(1024, 2)
+        self.Linear = nn.Linear(512, 2)
 
     def forward(self, inputs_xlnet, inputs_swin, inputs_clip_text, inputs_clip_img):
         batch_size = inputs_xlnet.shape[0]
@@ -213,13 +214,13 @@ class MMFN_classifier(torch.nn.Module):
         # TA_clipV = [single.view(batch_size, MMFN_config["CLIP_size"], -1) for single in TA_clipV]
         
         
-        output_TB = self.modelTB(TA_xlnet[0], TA_clipT[0])
-        output_VB = self.modelVB(TA_swin[0], TA_clipV[0])
+        # output_TB = self.modelTB(TA_xlnet[0], TA_clipT[0])
+        # output_VB = self.modelVB(TA_swin[0], TA_clipV[0])
         output_MFF = self.modelMFF(TA_xlnet[1], TA_swin[1], TA_clipT[1], TA_clipV[1])
 
-        output = torch.cat((output_TB, output_VB, output_MFF), dim=1)
+        # output = torch.cat((output_TB, output_VB, output_MFF), dim=1)
 
-        output = self.Linear(output)
+        output = self.Linear(output_MFF)
 
         output = torch.softmax(output, dim=1)
 
